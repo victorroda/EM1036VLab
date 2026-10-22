@@ -29,7 +29,7 @@ th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:right;white-s
 <p>Single-degree-of-freedom system with harmonic base excitation: y(t) = X<sub>F</sub> sin(Ωt), Ω = 2πf</p></header>
 <main>
 <section class="card"><h2>Setup</h2><canvas id="rig" width="340" height="400"></canvas>
-<button id="pp">Pause</button><button class="s" id="rs">Reset</button></section>
+<button id="pp">Pause</button><button class="s" id="rs">Reset</button><button class="s" id="sm">Slow motion: on</button></section>
 
 <div class="col"><section class="card"><h2>System parameters</h2>
 <div id="ctl"></div>
@@ -37,8 +37,8 @@ th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:right;white-s
 <section class="card"><h2>Excitation parameters (base motion)</h2><div id="ctlF"></div><div class="kv" id="der2"></div>
 </section></div>
 
-<section class="card"><h2>Time response</h2><canvas id="ts" width="340" height="260"></canvas>
-<p class="eq">Blue: base y(t). Orange: mass x(t). The initial transient is included.</p></section>
+<section class="card"><h2>Time response</h2><canvas id="ts" width="340" height="260"></canvas><button class="s" id="zi">Zoom in</button><button class="s" id="zo">Zoom out</button>
+<p class="eq">Blue: base y(t). Orange: mass x(t). The initial transient is included. The time axis spans a fixed number of excitation periods (15 by default, shown in the title; 6 s if f = 0). Use Zoom in / Zoom out to change it. Above 1 Hz the animation can run in slow motion (button in the setup panel); the time axis is in simulated seconds.</p></section>
 
 
 
@@ -102,7 +102,7 @@ spring(g,w/2-40,baseY,mb,10,12);
 const cx=w/2+40,mid=(baseY+mb)/2;g.beginPath();g.moveTo(cx,baseY);g.lineTo(cx,mid+8);g.moveTo(cx-12,mid-14);g.lineTo(cx-12,mid+14);g.lineTo(cx+12,mid+14);g.lineTo(cx+12,mid-14);g.moveTo(cx,mid-8);g.lineTo(cx,mb);g.stroke();
 g.fillStyle=o;g.fillRect(w/2-60,mt,120,44);g.fillStyle='#fff';g.fillText('m = '+P.m+' kg',w/2-34,mt+26);
 g.fillStyle=tx;g.fillText('k',w/2-72,(baseY+mb)/2);g.fillText('c',cx+18,mid+4);
-g.fillStyle=css('--mu');g.fillText('Normalised scale: 10 px = '+f(10/sc,2)+' mm',8,14);if(bad.size){g.fillStyle='#e5484d';g.fillText('Simulation stopped: incorrect input value',8,30)}}
+g.fillStyle=css('--mu');g.fillText('Normalised scale: 10 px = '+f(10/sc,2)+' mm',8,14);if(spd()<1)g.fillText('Slow motion: x'+f(spd(),2)+' (excitation shown at 1 Hz)',8,28);else if(P.f>1)g.fillText('Real time (x1)',8,28);if(bad.size){g.fillStyle='#e5484d';g.fillText('Simulation stopped: incorrect input value',8,44)}}
 function plotLines(c,series,xr,yl,title,vline,pt,ex){const[g,w,h]=setup(c);g.clearRect(0,0,w,h);const L=46,R=8,T=22,B=26;const pw=w-L-R,ph=h-T-B;
 g.font='11px system-ui';g.fillStyle=css('--tx');g.fillText(title,L,14);
 let mn=Infinity,mx=-Infinity;series.forEach(s=>s.d.forEach(p=>{mn=Math.min(mn,p[1]);mx=Math.max(mx,p[1])}));(ex||[]).forEach(p=>{if(p[0]>=0&&p[0]<=xr.b&&(!yl||p[1]>0)){mn=Math.min(mn,p[1]);mx=Math.max(mx,p[1])}});
@@ -125,12 +125,17 @@ function drawPlots(){renderExpTable();const ws=[],fnn=Math.sqrt(P.k/P.m)/2/Math.
 const d=derived(),F=frf(P.W);const defs2=[['Receptance |H| (m/N)','Ma'],['Mobility |Y| ((m/s)/N)','Mm'],['Inertance |A| ((m/s²)/N)','Mi'],['Dynamic amplification Γ₀','D']];
 defs2.forEach(([t,k],i)=>{const data=ws.map(fz=>[fz,frf(2*Math.PI*fz)[k]]);
 plotLines($('p'+i),[{d:data,c:css('--ac')}],{a:0,b:3*d.fn,log:false,u:' Hz',n:3},true,t+' vs f (Hz)',d.fn,[P.W/2/Math.PI,F[k]],expData.map(e=>[e.f,expCalc(e)[k]]))})}
-function drawTs(){const keep=hist.filter(p=>p[0]>t-TW);const t0=Math.max(0,t-TW);
-plotLines($('ts'),[{d:keep.map(p=>[p[0],p[1]]),c:css('--ac')},{d:keep.map(p=>[p[0],p[2]]),c:css('--ac2')}],{a:t0,b:t0+TW,log:false},false,'Displacement (mm) vs time (s)',null,null)}
+function drawTs(){const Wd=tWin(),keep=hist.filter(p=>p[0]>t-Wd);const t0=Math.max(0,t-Wd);
+plotLines($('ts'),[{d:keep.map(p=>[p[0],p[1]]),c:css('--ac')},{d:keep.map(p=>[p[0],p[2]]),c:css('--ac2')}],{a:t0,b:t0+Wd,log:false,n:5},false,'Displacement (mm) vs time (s) · '+perN()+' periods',null,null)}
 let last=performance.now(),fr=0;
 function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;
-if(run&&!bad.size){const n=Math.ceil(dt/0.0005),h=dt/n;for(let i=0;i<n;i++)step(h);hist.push([t,yb(t)*1000,x*1000]);if(hist.length>4000)hist.splice(0,hist.length-3000)}
+if(run&&!bad.size){const ds=dt*spd(),n=Math.ceil(ds/0.0005),h=ds/n,Wd=tWin();for(let i=0;i<n;i++){step(h);if(!hist.length||t-hist[hist.length-1][0]>=Wd/700)hist.push([t,yb(t)*1000,x*1000])}let c=0;while(c<hist.length&&hist[c][0]<t-Wd*1.05)c++;if(c)hist.splice(0,c)}
 drawRig();if(fr++%2==0)drawTs();requestAnimationFrame(loop)}
+let slow=true;const spd=()=>slow&&P.f>1?1/P.f:1;
+$('sm').onclick=e=>{slow=!slow;e.target.textContent='Slow motion: '+(slow?'on':'off')};
+const perL=[1,2,3,5,8,10,15,20,30,50,100,200];let pi=6;const perN=()=>perL[pi];
+const tWin=()=>P.f>0?perN()/P.f:TW*perN()/15;
+$('zi').onclick=()=>{pi=Math.max(0,pi-1)};$('zo').onclick=()=>{pi=Math.min(perL.length-1,pi+1)};
 let scS=null;
 function normScale(){const F=frf(P.W),d=derived();let mx=P.XF*d.T,my=P.XF,mz=P.XF*P.m*P.W*P.W*F.Ma;const w=P.f>0?Math.max(3,1.5/P.f):TW;
 for(let i=hist.length-1;i>=0&&hist[i][0]>t-w;i--){const p=hist[i];mx=Math.max(mx,Math.abs(p[2]));my=Math.max(my,Math.abs(p[1]));mz=Math.max(mz,Math.abs(p[2]-p[1]))}
