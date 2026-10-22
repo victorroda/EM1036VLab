@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Virtual vibration laboratory</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f7f9;--card:#fff;--tx:#1b2330;--mu:#5b6678;--bd:#d9dee6;--ac:#1f6feb;--ac2:#d9480f;--gr:#e6e9ee}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1b212a;--tx:#e6eaf0;--mu:#9aa5b5;--bd:#2e3745;--ac:#58a6ff;--ac2:#ff9b5e;--gr:#2a323e}}
+:root[data-theme="dark"]{--bg:#12161c;--card:#1b212a;--tx:#e6eaf0;--mu:#9aa5b5;--bd:#2e3745;--ac:#58a6ff;--ac2:#ff9b5e;--gr:#2a323e}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:16px 20px 4px}h1{margin:0;font-size:1.35rem}header p{margin:4px 0 0;color:var(--mu);font-size:.9rem}
+main{display:grid;gap:14px;padding:14px 20px 24px;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));max-width:1300px;margin:auto}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;min-width:0}
+h2{margin:0 0 8px;font-size:1rem}canvas{width:100%;display:block}
+.row{display:grid;grid-template-columns:120px 1fr 150px;gap:8px;align-items:center;margin:7px 0}
+.row span{white-space:nowrap;font-size:.85rem;color:var(--mu)}.row input[type=number]{width:84px;padding:4px 6px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);font:inherit;font-size:.85rem}
+input[type=range]{width:100%;accent-color:var(--ac)}
+button{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:7px 12px;font:inherit;cursor:pointer;margin:4px 6px 0 0}
+button.s{background:var(--gr);color:var(--tx)}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:.88rem;margin-top:8px}.kv span{color:var(--mu)}
+.wide{grid-column:1/-1}.err{grid-column:1/-1;display:none;color:#e5484d;font-size:.8rem;font-style:normal}input.bad{border-color:#e5484d!important;outline:2px solid #e5484d;background:rgba(229,72,77,.12)!important}.exf{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:10px}.exf label{display:grid;gap:3px;font-size:.8rem;color:var(--mu)}.exf input{width:150px;padding:4px 6px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);font:inherit;font-size:.85rem}.exf button{margin:0}td button{margin:0;padding:3px 9px}.col{display:grid;gap:14px;align-content:start;min-width:0}.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}
+.eq{font-size:.85rem;color:var(--mu)}.plots{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+</style></head><body>
+<header><h1>Virtual vibration laboratory</h1>
+<p>Single-degree-of-freedom system with harmonic base excitation: y(t) = X<sub>F</sub> sin(Ωt), Ω = 2πf</p></header>
+<main>
+<section class="card"><h2>Setup</h2><canvas id="rig" width="340" height="400"></canvas>
+<button id="pp">Pause</button><button class="s" id="rs">Reset</button></section>
+
+<div class="col"><section class="card"><h2>System parameters</h2>
+<div id="ctl"></div>
+<div class="kv" id="der"></div></section>
+<section class="card"><h2>Excitation parameters (base motion)</h2><div id="ctlF"></div><div class="kv" id="der2"></div>
+</section></div>
+
+<section class="card"><h2>Time response</h2><canvas id="ts" width="340" height="260"></canvas>
+<p class="eq">Blue: base y(t). Orange: mass x(t). The initial transient is included.</p></section>
+
+
+
+<section class="card wide"><h2>Frequency response functions</h2><div class="plots">
+<div><canvas id="p0" width="340" height="230"></canvas></div><div><canvas id="p1" width="340" height="230"></canvas></div>
+<div><canvas id="p2" width="340" height="230"></canvas></div><div><canvas id="p3" width="340" height="230"></canvas></div></div>
+<p class="eq">Receptance H = 1/(k − mΩ² + jcΩ) · Mobility Y = jΩ·H · Inertance A = −Ω²·H · Dynamic amplification factor Γ₀ = k|H| = 1/√((1−r²)²+(2ζr)²), with r = Ω/ω<sub>n</sub> and Ω = 2πf. Dashed line: natural frequency f<sub>n</sub>.</p></section>
+<section class="card wide"><h2>Experimental values</h2>
+<div class="exf"><label>Forcing frequency f (Hz)<input type="number" min="0" step="any" id="ef"></label><label>Velocity amplitude Ẋ<sub>F</sub> (mm/s)<input type="number" min="0" step="any" id="ev"></label><label>Acceleration amplitude Ẍ (g)<input type="number" min="0" step="any" id="ea"></label><button id="eadd">Add new value</button></div>
+<div class="err" id="eerr"></div>
+<div class="tw"><table id="et"></table></div>
+<p class="eq">Each value is plotted as a magenta square on the four plots above (only if f ≤ 3f<sub>n</sub>). Conversion: Ω = 2πf, F₀ = Ẋ<sub>F</sub>·√((k/Ω)² + c²) (force transmitted to the mass through the spring and damper), inertance A = 9.80665·Ẍ/F₀ (Ẍ in g), mobility Y = A/Ω, receptance H = A/Ω², Γ₀ = kH. They use the current m, k and c, so they update if you change the system.</p></section>
+</main>
+<script>
+const P={m:1,k:1,c:1,XF:1,f:1,W:2*Math.PI};
+const $=id=>document.getElementById(id);
+const sliders={},bad=new Set();
+const defs=[['ctl','m','Mass m','kg',0.05,10,0.001],['ctl','k','Stiffness k','N/m',1,10000,1],['ctl','c','Damping c','N·s/m',0,50,0.001],['ctlF','XF','Base amplitude X<sub>F</sub>','mm',0,20,0.001],['ctlF','f','Frequency f','Hz',0,20,0.01]];
+defs.forEach(([box,k,l,u,mn,mx,st])=>{const r=document.createElement('div');r.className='row';
+r.innerHTML=`<label>${l}</label><input type="range" min="${mn}" max="${mx}" step="${st}" value="${P[k]}"><span><input type="number" min="0" step="any" value="${P[k]}"> ${u}</span><em class="err"></em>`;
+const rg=r.children[1],nb=r.children[2].firstChild;sliders[k]=rg;
+const msg=r.children[3],zeroOk=['c','XF','f'].includes(k);
+const set=v=>{const ok=nb.value!==''&&isFinite(v)&&(zeroOk?v>=0:v>0);nb.classList.toggle('bad',!ok);msg.style.display=ok?'none':'block';msg.textContent=ok?'':(nb.value===''||!isFinite(v)?'Incorrect value: enter a number.':'Incorrect value: it must be '+(zeroOk?'zero or positive.':'greater than zero.'));ok?bad.delete(nb):bad.add(nb);if(!ok)return;P[k]=v;if(k==='f')P.W=2*Math.PI*v;refresh()};
+rg.oninput=()=>{nb.value=rg.value;set(+rg.value)};
+nb.oninput=()=>{set(+nb.value);rg.value=Math.min(Math.max(+nb.value,mn),+rg.max)};
+$(box).appendChild(r)});
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function frf(W){const m=P.m,k=P.k,c=P.c;const dr=k-m*W*W,di=c*W,d2=dr*dr+di*di;
+const a=[dr/d2,-di/d2];const mo=[-W*a[1],W*a[0]];const ia=[-W*W*a[0],-W*W*a[1]];
+const M=z=>Math.hypot(z[0],z[1]),Ph=z=>Math.atan2(z[1],z[0])*180/Math.PI;
+return{a,mo,ia,Ma:M(a),Mm:M(mo),Mi:M(ia),Pa:Ph(a),Pm:Ph(mo),Pi:Ph(ia),D:k*M(a)}}
+function derived(){const wn=Math.sqrt(P.k/P.m),z=P.c/(2*Math.sqrt(P.k*P.m)),r=P.W/wn;
+const T=Math.sqrt(1+(2*z*r)**2)/Math.sqrt((1-r*r)**2+(2*z*r)**2);return{wn,z,r,T,fn:wn/2/Math.PI}}
+const f=(x,n=3)=>Math.abs(x)>=1e4||(x!==0&&Math.abs(x)<1e-3)?x.toExponential(2):(+x.toPrecision(n)).toString();
+function refresh(){const d=derived(),F=frf(P.W),X=P.XF/1000,F0=P.m*P.W*P.W*X;
+if(sliders.f){sliders.f.max=Math.max(3*d.fn,0.2).toFixed(3);sliders.f.value=P.f}
+$('der').innerHTML=`<span>Natural frequency f<sub>n</sub></span><b>${f(d.fn)} Hz</b><span>Natural frequency ω<sub>n</sub></span><b>${f(d.wn)} rad/s</b><span>Damping ratio ζ</span><b>${f(d.z)}</b>`;
+$('der2').innerHTML=`<span>Frequency Ω = 2πf</span><b>${f(P.W)} rad/s</b><span>Frequency ratio r = Ω/ω<sub>n</sub></span><b>${f(d.r)}</b>`;
+drawPlots()}
+// Simulación (RK4 sobre x absoluta)
+let t=0,x=0,v=0,run=true,hist=[];const TW=6;
+const yb=t=>P.XF/1000*Math.sin(P.W*t),yd=t=>P.XF/1000*P.W*Math.cos(P.W*t);
+const acc=(t,x,v)=>(-P.c*(v-yd(t))-P.k*(x-yb(t)))/P.m;
+function step(h){const k1x=v,k1v=acc(t,x,v);const k2x=v+h/2*k1v,k2v=acc(t+h/2,x+h/2*k1x,v+h/2*k1v);
+const k3x=v+h/2*k2v,k3v=acc(t+h/2,x+h/2*k2x,v+h/2*k2v);const k4x=v+h*k3v,k4v=acc(t+h,x+h*k3x,v+h*k3v);
+x+=h/6*(k1x+2*k2x+2*k3x+k4x);v+=h/6*(k1v+2*k2v+2*k3v+k4v);t+=h}
+$('pp').onclick=e=>{run=!run;e.target.textContent=run?'Pause':'Resume'};
+$('rs').onclick=()=>{t=0;x=0;v=0;hist=[]};
+function setup(c){const s=devicePixelRatio||1,w=c.clientWidth,h=c.height/c.width*w;c.width=w*s;c.height=h*s;const g=c.getContext('2d');g.setTransform(s,0,0,s,0,0);return[g,w,h]}
+function spring(g,x0,y0,y1,n=10,a=12){g.beginPath();g.moveTo(x0,y0);const L=y1-y0;for(let i=0;i<n;i++){g.lineTo(x0+(i%2?a:-a),y0+L*(i+.5)/n)}g.lineTo(x0,y1);g.stroke()}
+function drawRig(){const[g,w,h]=setup($('rig'));g.clearRect(0,0,w,h);const tx=css('--tx'),ac=css('--ac'),o=css('--ac2');
+const by=h-70,L=210,sc=normScale();
+const yp=-yb(t)*1000*sc,xp=-(x*1000*sc);const baseY=by+yp,massY=by-L+xp;
+g.lineWidth=2;g.strokeStyle=tx;g.fillStyle=css('--gr');
+g.beginPath();g.moveTo(20,h-18);g.lineTo(w-20,h-18);g.stroke();for(let i=20;i<w-20;i+=12){g.beginPath();g.moveTo(i,h-18);g.lineTo(i-8,h-8);g.stroke()}
+g.fillStyle=ac;g.fillRect(w/2-80,baseY,160,18);g.fillStyle=tx;g.font='12px system-ui';g.fillText('Base y(t)',w/2-30,baseY+13+0);
+g.fillStyle=css('--bd');g.fillRect(w/2-3,baseY+18,6,h-18-baseY-18);
+const mt=massY,mb=massY+44;g.strokeStyle=tx;
+spring(g,w/2-40,baseY,mb,10,12);
+// amortiguador
+const cx=w/2+40,mid=(baseY+mb)/2;g.beginPath();g.moveTo(cx,baseY);g.lineTo(cx,mid+8);g.moveTo(cx-12,mid-14);g.lineTo(cx-12,mid+14);g.lineTo(cx+12,mid+14);g.lineTo(cx+12,mid-14);g.moveTo(cx,mid-8);g.lineTo(cx,mb);g.stroke();
+g.fillStyle=o;g.fillRect(w/2-60,mt,120,44);g.fillStyle='#fff';g.fillText('m = '+P.m+' kg',w/2-34,mt+26);
+g.fillStyle=tx;g.fillText('k',w/2-72,(baseY+mb)/2);g.fillText('c',cx+18,mid+4);
+g.fillStyle=css('--mu');g.fillText('Normalised scale: 10 px = '+f(10/sc,2)+' mm',8,14);if(bad.size){g.fillStyle='#e5484d';g.fillText('Simulation stopped: incorrect input value',8,30)}}
+function plotLines(c,series,xr,yl,title,vline,pt,ex){const[g,w,h]=setup(c);g.clearRect(0,0,w,h);const L=46,R=8,T=22,B=26;const pw=w-L-R,ph=h-T-B;
+g.font='11px system-ui';g.fillStyle=css('--tx');g.fillText(title,L,14);
+let mn=Infinity,mx=-Infinity;series.forEach(s=>s.d.forEach(p=>{mn=Math.min(mn,p[1]);mx=Math.max(mx,p[1])}));(ex||[]).forEach(p=>{if(p[0]>=0&&p[0]<=xr.b&&(!yl||p[1]>0)){mn=Math.min(mn,p[1]);mx=Math.max(mx,p[1])}});
+if(yl){mn=Math.max(Math.log10(mn),Math.log10(mx)-4);mx=Math.log10(mx);} if(mx-mn<1e-9){mx+=1;mn-=1}
+const pad=(mx-mn)*.05;mn-=pad;mx+=pad;const X=v=>L+(xr.log?(Math.log10(v)-Math.log10(xr.a))/(Math.log10(xr.b)-Math.log10(xr.a)):(v-xr.a)/(xr.b-xr.a))*pw;
+const Y=v=>T+ph-((yl?Math.log10(Math.max(v,1e-30)):v)-mn)/(mx-mn)*ph;
+g.strokeStyle=css('--gr');g.lineWidth=1;g.fillStyle=css('--mu');
+if(yl){for(let e=Math.ceil(mn);e<=mx;e++){const yy=Y(Math.pow(10,e));g.beginPath();g.moveTo(L,yy);g.lineTo(L+pw,yy);g.stroke();g.fillText('1e'+e,2,yy+4)}}
+else{for(let i=0;i<=4;i++){const v=mn+(mx-mn)*i/4,yy=Y(v);g.beginPath();g.moveTo(L,yy);g.lineTo(L+pw,yy);g.stroke();g.fillText(f(v,2),2,yy+4)}}
+if(xr.log){for(let e=Math.ceil(Math.log10(xr.a));e<=Math.log10(xr.b);e++){const xx=X(Math.pow(10,e));g.beginPath();g.moveTo(xx,T);g.lineTo(xx,T+ph);g.stroke();g.fillText(f(Math.pow(10,e),2)+' Hz',xx-14,h-10)}}
+else{const nt=xr.n||TWn;g.textAlign='center';for(let i=0;i<=nt;i++){const v=xr.a+(xr.b-xr.a)*i/nt,xx=X(v);g.beginPath();g.moveTo(xx,T);g.lineTo(xx,T+ph);g.stroke();g.fillText(f(v,3)+(xr.u||' s'),xx,h-10)}g.textAlign='left'}
+g.strokeStyle=css('--mu');g.strokeRect(L,T,pw,ph);
+if(vline){g.setLineDash([4,4]);g.beginPath();g.moveTo(X(vline),T);g.lineTo(X(vline),T+ph);g.stroke();g.setLineDash([])}
+g.save();g.beginPath();g.rect(L,T,pw,ph);g.clip();g.lineWidth=2;
+series.forEach(s=>{g.strokeStyle=s.c;g.beginPath();s.d.forEach((p,i)=>{const px=X(p[0]),py=Y(p[1]);i?g.lineTo(px,py):g.moveTo(px,py)});g.stroke()});g.restore();
+if(pt&&pt[0]<=xr.b){g.fillStyle=css('--ac2');g.beginPath();g.arc(X(pt[0]),Y(pt[1]),5,0,7);g.fill()}
+g.save();g.beginPath();g.rect(L,T,pw,ph);g.clip();g.fillStyle='#c2338a';g.strokeStyle=css('--card');g.lineWidth=1.5;(ex||[]).forEach(p=>{if(p[0]<0||p[0]>xr.b||!(p[1]>0))return;g.fillRect(X(p[0])-4.5,Y(p[1])-4.5,9,9);g.strokeRect(X(p[0])-4.5,Y(p[1])-4.5,9,9)});g.restore()}
+const TWn=3;
+function drawPlots(){renderExpTable();const ws=[],fnn=Math.sqrt(P.k/P.m)/2/Math.PI;for(let i=0;i<400;i++)ws.push(3*fnn*(i+.5)/400);
+const d=derived(),F=frf(P.W);const defs2=[['Receptance |H| (m/N)','Ma'],['Mobility |Y| ((m/s)/N)','Mm'],['Inertance |A| ((m/s²)/N)','Mi'],['Dynamic amplification Γ₀','D']];
+defs2.forEach(([t,k],i)=>{const data=ws.map(fz=>[fz,frf(2*Math.PI*fz)[k]]);
+plotLines($('p'+i),[{d:data,c:css('--ac')}],{a:0,b:3*d.fn,log:false,u:' Hz',n:3},true,t+' vs f (Hz)',d.fn,[P.W/2/Math.PI,F[k]],expData.map(e=>[e.f,expCalc(e)[k]]))})}
+function drawTs(){const keep=hist.filter(p=>p[0]>t-TW);const t0=Math.max(0,t-TW);
+plotLines($('ts'),[{d:keep.map(p=>[p[0],p[1]]),c:css('--ac')},{d:keep.map(p=>[p[0],p[2]]),c:css('--ac2')}],{a:t0,b:t0+TW,log:false},false,'Displacement (mm) vs time (s)',null,null)}
+let last=performance.now(),fr=0;
+function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;
+if(run&&!bad.size){const n=Math.ceil(dt/0.0005),h=dt/n;for(let i=0;i<n;i++)step(h);hist.push([t,yb(t)*1000,x*1000]);if(hist.length>4000)hist.splice(0,hist.length-3000)}
+drawRig();if(fr++%2==0)drawTs();requestAnimationFrame(loop)}
+let scS=null;
+function normScale(){const F=frf(P.W),d=derived();let mx=P.XF*d.T,my=P.XF,mz=P.XF*P.m*P.W*P.W*F.Ma;const w=P.f>0?Math.max(3,1.5/P.f):TW;
+for(let i=hist.length-1;i>=0&&hist[i][0]>t-w;i--){const p=hist[i];mx=Math.max(mx,Math.abs(p[2]));my=Math.max(my,Math.abs(p[1]));mz=Math.max(mz,Math.abs(p[2]-p[1]))}
+let s=Math.min(60/Math.max(mx,1e-9),30/Math.max(my,1e-9),100/Math.max(mz,1e-9));if(!isFinite(s))s=1;
+scS=scS===null?s:scS+(s-scS)*(s<scS?1:.08);return scS}
+let expData=[];
+const expCalc=e=>{const W=2*Math.PI*e.f,F0=e.V/1000*Math.sqrt((P.k/W)**2+P.c**2),A=e.a*9.80665/F0;return{Mi:A,Mm:A/W,Ma:A/W/W,D:P.k*A/W/W}};
+function renderExpTable(){const t=$('et');t.innerHTML=expData.length?'<tr><th>#</th><th>f (Hz)</th><th>Ẋ<sub>F</sub> (mm/s)</th><th>Ẍ (g)</th><th>H (m/N)</th><th>Y ((m/s)/N)</th><th>A ((m/s²)/N)</th><th>Γ₀</th><th></th></tr>'+expData.map((e,i)=>{const r=expCalc(e);return `<tr><td>${i+1}</td><td>${f(e.f)}</td><td>${f(e.V)}</td><td>${f(e.a)}</td><td>${f(r.Ma)}</td><td>${f(r.Mm)}</td><td>${f(r.Mi)}</td><td>${f(r.D)}</td><td><button class="s" data-i="${i}">Remove</button></td></tr>`}).join(''):'';
+t.querySelectorAll('button').forEach(b=>b.onclick=()=>{expData.splice(+b.dataset.i,1);drawPlots()})}
+const eNames=['Forcing frequency','Velocity amplitude','Acceleration amplitude'];
+function chkExp(force){const m=[];['ef','ev','ea'].forEach((id,i)=>{const el=$(id),s=el.value,ok=s!==''&&isFinite(+s)&&+s>0,flag=!ok&&(force||s!==''||el.validity.badInput);el.classList.toggle('bad',flag);flag?bad.add(el):bad.delete(el);if(flag)m.push('Incorrect value in "'+eNames[i]+'": enter a number greater than zero.')});const e=$('eerr');e.style.display=m.length?'block':'none';e.textContent=m.join(' ');return !m.length}
+['ef','ev','ea'].forEach(i=>$(i).oninput=()=>chkExp(false));
+$('eadd').onclick=()=>{if(!chkExp(true))return;expData.push({f:+$('ef').value,V:+$('ev').value,a:+$('ea').value});['ef','ev','ea'].forEach(i=>$(i).value='');chkExp(false);drawPlots()};
+refresh();requestAnimationFrame(loop);addEventListener('resize',refresh);
+</script></body></html>
