@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Laboratorio de superposición modal – 2 GDL</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b2330;--mu:#5d6878;--bd:#d9dde4;--c0:#1f2937;--c1:#2563eb;--c2:#ea580c;--ac:#0f766e;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10141b;--card:#1a2029;--tx:#e8ecf2;--mu:#9aa5b5;--bd:#2d3644;--c0:#e5e7eb;--c1:#60a5fa;--c2:#fb923c;--ac:#2dd4bf}}
+:root[data-theme="dark"]{--bg:#10141b;--card:#1a2029;--tx:#e8ecf2;--mu:#9aa5b5;--bd:#2d3644;--c0:#e5e7eb;--c1:#60a5fa;--c2:#fb923c;--ac:#2dd4bf}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:12px}
+h1{font-size:19px;margin:4px 0 2px}
+p.s{color:var(--mu);margin:0 0 10px;font-size:13px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px;margin-bottom:10px}
+canvas{width:100%;display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 12px}
+label{font-size:12px;color:var(--mu);display:block}
+label b{color:var(--tx);font-variant-numeric:tabular-nums;float:right}
+input[type=range]{width:100%;accent-color:var(--ac)}
+h2{font-size:14px;margin:0 0 6px}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+button{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 11px;font-size:13px}
+button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.leg{font-size:12px;color:var(--mu);display:flex;gap:12px;flex-wrap:wrap;margin-top:4px}
+.leg i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+input[type=number]{width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font-size:14px}
+select{width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font-size:14px;margin:4px 0 6px}
+input.bad{border-color:#dc2626!important;outline:1px solid #dc2626}
+small.err{color:#dc2626;font-size:11px;line-height:1.25;display:block;margin-top:2px}
+input[type=number]:disabled{opacity:.45}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+td,th{padding:4px 8px;border-bottom:1px solid var(--bd);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+.eq{font-size:13px;color:var(--mu);margin-top:6px}
+</style>
+</head>
+<body>
+<h1>Laboratorio de superposición modal</h1>
+<p class="s">Sistema de 2 GDL: pared – k₁ – m₁ – k₂ – m₂ – k₃ – pared, con amortiguamiento proporcional (Rayleigh) C = αM + βK.</p>
+
+<div class="card">
+  <h2>Parámetros del modelo</h2>
+  <label style="display:flex;gap:8px;align-items:center;color:var(--tx);font-size:14px;margin-bottom:8px"><input type="checkbox" id="dmp"> Con amortiguamiento proporcional (C = αM + βK)</label>
+  <div class="grid" id="ctl"></div>
+  <div class="tw" style="margin-top:8px"><table id="tb"></table></div>
+  <div class="eq">mᵢ = φᵢᵀMφᵢ · kᵢ = φᵢᵀKφᵢ = ωᵢ²mᵢ · cᵢ = φᵢᵀCφᵢ = αmᵢ + βkᵢ = 2ζᵢωᵢmᵢ</div>
+</div>
+
+<div class="card">
+  <h2>Modos de vibración</h2>
+  <div class="btns"><button class="bp">⏸ Pausa</button></div>
+  <canvas id="cvm"></canvas>
+  <div class="eq">Cada modo oscila por separado con su forma φᵢ (normalizada con la 2.ª componente = 1) y su frecuencia ωᵢ.</div>
+</div>
+
+<div class="card">
+  <h2>Solución homogénea (condiciones iniciales)</h2>
+  
+  <div class="grid" id="ini"></div>
+  <div class="eq" id="ro"></div>
+  <div class="eq" id="in_fit">La homogénea se ajusta para que la respuesta total cumpla x(0) y v(0): qᵢ,h(0) = qᵢ(0) − qᵢ,p(0), con qᵢ(0) = φᵢᵀMx(0)/mᵢ y q̇ᵢ(0) = φᵢᵀMv(0)/mᵢ.</div>
+  
+</div>
+
+<div class="card">
+  <h2>Solución particular (excitación)</h2>
+  <div style="margin-bottom:6px"><label style="color:var(--tx);font-size:14px">Excitación en m₁ (un solo tipo por grado de libertad)</label>
+  <select id="ft1"><option value="n" selected>Sin fuerza</option><option value="h">Fuerza armónica F₁ sin(Ω₁t + ψ₁)</option><option value="i">Impacto: impulso I₁ en el instante t₁</option></select>
+  <div class="grid" id="gh1"></div><div class="grid" id="gi1"></div></div>
+  <div style="margin-bottom:6px"><label style="color:var(--tx);font-size:14px">Excitación en m₂ (un solo tipo por grado de libertad)</label>
+  <select id="ft2"><option value="n">Sin fuerza</option><option value="h">Fuerza armónica F₂ sin(Ω₂t + ψ₂)</option><option value="i">Impacto: impulso I₂ en el instante t₂</option></select>
+  <div class="grid" id="gh2"></div><div class="grid" id="gi2"></div></div>
+  <div class="eq" style="margin-top:8px">Armónica: cada fuerza da un estado estacionario a su propia frecuencia, qᵢ,p = Σⱼ Im[ φⱼᵢ F̂ⱼ e^(iΩⱼt) / (kᵢ − Ωⱼ²mᵢ + iΩⱼcᵢ) ]. Impacto: respuesta desde reposo qᵢ,p = φⱼᵢ Iⱼ/mᵢ · e^(−ζᵢωᵢτ) sin(ω_dᵢτ)/ω_dᵢ, con τ = t − tⱼ ≥ 0.</div>
+  <div class="eq" id="warn" style="color:#c2410c"></div>
+</div>
+
+<div class="card">
+  <h2>Respuesta</h2>
+  <div class="btns" style="align-items:center">
+    <label style="display:inline-flex;gap:6px;align-items:center;font-size:14px;color:var(--tx)"><input type="checkbox" id="shH" checked> Homogénea</label>
+    <label style="display:inline-flex;gap:6px;align-items:center;font-size:14px;color:var(--tx)"><input type="checkbox" id="shP" checked> Particular</label>
+    <button class="bp">⏸ Pausa</button><button id="br">↺ Reiniciar</button>
+  </div>
+  <canvas id="cv"></canvas>
+  <div class="eq">Arriba: respuesta total (suma de las partes activas). Debajo: contribución de cada modo. La escala de la animación se ajusta a la amplitud máxima de la respuesta total.</div>
+  <canvas id="pl1" style="margin-top:8px"></canvas>
+  <canvas id="pl2" style="margin-top:6px"></canvas>
+  <div class="leg"><span><i style="background:var(--c0)"></i>Total</span><span><i style="background:var(--c1)"></i>Modo 1 (φ₁·q₁)</span><span><i style="background:var(--c2)"></i>Modo 2 (φ₂·q₂)</span><span><i style="background:var(--mu)"></i>Homogénea</span><span><i style="background:var(--ac)"></i>Particular</span></div>
+  <div class="eq">Las líneas punteadas marcan la amplitud máxima (±) de la respuesta total y de la contribución de cada modo en la ventana mostrada.</div>
+  <div class="eq" style="margin-top:8px;color:var(--tx)"><b>Amplitud máxima (m) en la ventana mostrada</b></div>
+  <div class="tw"><table id="amp"></table></div>
+</div>
+
+<script>
+const P={m1:2,m2:4,k1:50,k2:100,k3:150,al:0.2,be:0.002,damp:false,a1:0.05,a2:0.02,v1:0,v2:0,A1:0,T1:0,A2:0,T2:0,man:false,sp:1,fh1:false,fh2:false,fi1:false,fi2:false,F1:10,F2:10,ps1:0,ps2:0,Om1:12,Om2:15,I1:2,I2:2,tt1:1,tt2:1,showH:true,showP:true};
+const DEF=[['m1','m₁ (kg)',1e-3],['m2','m₂ (kg)',1e-3],['k1','k₁ (N/m)',1e-3],['k2','k₂ (N/m)',1e-3],['k3','k₃ (N/m)',1e-3],['al','α (1/s)',0],['be','β (s)',0]];
+const INI=[['a1','x₁(0) (m)',-1.5,1.5,0.01],['a2','x₂(0) (m)',-1.5,1.5,0.01],['v1','v₁(0) (m/s)',-10,10,0.05],['v2','v₂(0) (m/s)',-10,10,0.05],
+ ['A1','A₁ (m)',-1.5,1.5,0.01],['T1','θ₁ (°)',-180,180,1],['A2','A₂ (m)',-1.5,1.5,0.01],['T2','θ₂ (°)',-180,180,1]];
+const ctl=document.getElementById('ctl');
+DEF.forEach(([k,n,mn])=>{
+  const d=document.createElement('div');
+  d.innerHTML=`<label>${n}</label><input type="number" id="r_${k}" step="any" value="${P[k]}">`;ctl.appendChild(d);
+  d.querySelector('input').addEventListener('input',e=>{const v=parseFloat(e.target.value);if(!isFinite(v)||v<mn)return;P[k]=v;upd();});
+});
+INI.forEach(([k,n,lo,hi,st])=>{
+  const d=document.createElement('div');
+  d.innerHTML=`<label>${n}</label><input type="number" id="r_${k}" step="any" value="${P[k]}"><input type="range" id="s_${k}" min="${lo}" max="${hi}" step="${st}" value="${P[k]}">`;
+  d.dataset.g=['A1','T1','A2','T2'].includes(k)?'man':'fit';document.getElementById('ini').appendChild(d);
+  const nb=d.querySelector('input[type=number]'),sl=d.querySelector('input[type=range]');
+  nb.addEventListener('input',()=>{const v=parseFloat(nb.value);if(!isFinite(v))return;P[k]=v;sl.value=v;t=0;upd(k);});
+  sl.addEventListener('input',()=>{const v=parseFloat(sl.value);P[k]=v;nb.value=v;t=0;upd(k);});
+});
+[['gh1',[['F1','F₁ (N)',-1e9],['Om1','Ω₁ (rad/s)',1e-3],['ps1','ψ₁ (°)',-1e9]]],
+ ['gh2',[['F2','F₂ (N)',-1e9],['Om2','Ω₂ (rad/s)',1e-3],['ps2','ψ₂ (°)',-1e9]]],
+ ['gi1',[['I1','I₁ (N·s)',-1e9],['tt1','t₁ (s)',0]]],
+ ['gi2',[['I2','I₂ (N·s)',-1e9],['tt2','t₂ (s)',0]]]].forEach(([id,list])=>list.forEach(([k,n,mn])=>{
+  const d=document.createElement('div');
+  d.innerHTML=`<label>${n}</label><input type="number" id="r_${k}" step="any" value="${P[k]}">`;document.getElementById(id).appendChild(d);
+  d.querySelector('input').addEventListener('input',e=>{const v=parseFloat(e.target.value);if(!isFinite(v)||v<mn)return;P[k]=v;upd();});
+}));
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const D2R=Math.PI/180;
+
+let S;
+function solve(){
+  const {m1,m2,k1,k2,k3,al,be}=P;
+  const a=m1*m2,b=-(m1*(k2+k3)+m2*(k1+k2)),c=(k1+k2)*(k2+k3)-k2*k2;
+  const D=Math.sqrt(Math.max(b*b-4*a*c,0));
+  const lam=[(-b-D)/(2*a),(-b+D)/(2*a)],w=lam.map(Math.sqrt);
+  const phi=lam.map(l=>[(k2+k3-l*m2)/k2,1]);
+  const z=w.map(x=>P.damp?(al/x+be*x)/2:0);
+  const mm=phi.map(f=>m1*f[0]*f[0]+m2*f[1]*f[1]);
+  const wd=w.map((x,i)=>Math.max(x*Math.sqrt(Math.max(1-z[i]*z[i],0)),1e-3*x));
+  // particular armónica por GDL (estado estacionario): q = gr sin(Ωt) + gi cos(Ωt)
+  const Oms=[P.Om1,P.Om2],Fs=[P.F1,P.F2],pss=[P.ps1,P.ps2],fh=[P.fh1,P.fh2],fim=[P.fi1,P.fi2],Is=[P.I1,P.I2];
+  const hc=[0,1].map(i=>[0,1].map(j=>{
+    if(!fh[j])return [0,0];
+    const fr=phi[i][j]*Fs[j]*Math.cos(pss[j]*D2R),fi=phi[i][j]*Fs[j]*Math.sin(pss[j]*D2R),O=Oms[j];
+    const dr0=(w[i]*w[i]-O*O)*mm[i],di=O*2*z[i]*w[i]*mm[i],dr=(Math.abs(dr0)+Math.abs(di)<1e-9)?1e-9:dr0,d=dr*dr+di*di;
+    return [(fr*dr+fi*di)/d,(fi*dr-fr*di)/d];
+  }));
+  const imp=[0,1].map(i=>[0,1].map(j=>fim[j]?phi[i][j]*Is[j]/mm[i]:0));
+  const qs0=hc.map(g=>g[0][1]+g[1][1]),qsd0=hc.map(g=>Oms[0]*g[0][0]+Oms[1]*g[1][0]);
+  let qh0,qhd0,q0,qd0;
+  if(P.man){
+    const A=[P.A1,P.A2],T=[P.T1*D2R,P.T2*D2R];
+    qh0=A.map((x,i)=>x*Math.cos(T[i]));
+    qhd0=A.map((x,i)=>-x*(z[i]*w[i]*Math.cos(T[i])+wd[i]*Math.sin(T[i])));
+    q0=qh0.map((x,i)=>x+qs0[i]);qd0=qhd0.map((x,i)=>x+qsd0[i]);
+  }else{
+    q0=phi.map((f,i)=>(m1*f[0]*P.a1+m2*f[1]*P.a2)/mm[i]);
+    qd0=phi.map((f,i)=>(m1*f[0]*P.v1+m2*f[1]*P.v2)/mm[i]);
+    qh0=q0.map((x,i)=>x-qs0[i]);qhd0=qd0.map((x,i)=>x-qsd0[i]);
+  }
+  S={w,z,phi,q0,qd0,mm,wd,hc,imp,qh0,qhd0};
+}
+function free(i,t,q,v){
+  const W=S.w[i],Z=S.z[i],c=v+Z*W*q,e=Math.exp(-Z*W*t);
+  if(Z<1){const wd=W*Math.sqrt(1-Z*Z);return e*(q*Math.cos(wd*t)+c/wd*Math.sin(wd*t));}
+  const s=Math.max(W*Math.sqrt(Z*Z-1),1e-6);
+  return e*(q*Math.cosh(s*t)+c/s*Math.sinh(s*t));
+}
+const qh=(i,t)=>free(i,t,S.qh0[i],S.qhd0[i]);
+function qp(i,t){
+  let r=0;
+  [P.Om1,P.Om2].forEach((O,j)=>{const g=S.hc[i][j];r+=g[0]*Math.sin(O*t)+g[1]*Math.cos(O*t);});
+  [P.tt1,P.tt2].forEach((tj,j)=>{if(t>=tj)r+=S.imp[i][j]*free(i,t-tj,0,1);});
+  return r;
+}
+const q=(i,t)=>(P.showH?qh(i,t):0)+(P.showP?qp(i,t):0);
+const xm=(i,j,t)=>S.phi[i][j]*q(i,t);
+
+function upd(skip){
+  solve();
+  ['al','be'].forEach(k=>document.getElementById('r_'+k).disabled=!P.damp);
+  const {w,z,phi,q0,qd0,mm,wd}=S,f=n=>n.toFixed(3);
+  document.getElementById('tb').innerHTML=
+   '<tr><th></th><th>ωᵢ (rad/s)</th><th>mᵢ (kg)</th><th>kᵢ (N/m)</th><th>cᵢ (N·s/m)</th><th>ζᵢ</th></tr>'+
+   [0,1].map(i=>`<tr><td>Modo ${i+1}</td><td>${f(w[i])}</td><td>${f(mm[i])}</td><td>${f(w[i]*w[i]*mm[i])}</td><td>${f(2*z[i]*w[i]*mm[i])}</td><td>${f(z[i])}</td></tr>`).join('');
+  const sum=(v,j)=>phi[0][j]*v[0]+phi[1][j]*v[1];
+  const set=(k,v)=>{P[k]=v;if(k===skip)return;document.getElementById('r_'+k).value=+v.toPrecision(4);document.getElementById('s_'+k).value=v;};
+  if(P.man){set('a1',sum(q0,0));set('a2',sum(q0,1));set('v1',sum(qd0,0));set('v2',sum(qd0,1));}
+  else{[0,1].forEach(i=>{const h0=S.qh0[i],s=-(S.qhd0[i]+z[i]*w[i]*h0)/wd[i];set('A'+(i+1),Math.hypot(h0,s));set('T'+(i+1),Math.atan2(s,h0)/D2R);});}
+  [['F1','Om1','ps1',P.fh1],['F2','Om2','ps2',P.fh2],['I1','tt1',null,P.fi1],['I2','tt2',null,P.fi2]].forEach(([a,b,c,on])=>[a,b,c].forEach(k=>{if(k)document.getElementById('r_'+k).disabled=!on;}));
+  ['a1','a2','v1','v2'].forEach(k=>{if(k!==skip){document.getElementById('r_'+k).value=+P[k].toPrecision(4);document.getElementById('s_'+k).value=P[k];}});
+  [1,2].forEach(n=>{document.getElementById('gh'+n).style.display=P['fh'+n]?'':'none';document.getElementById('gi'+n).style.display=P['fi'+n]?'':'none';});
+  document.querySelectorAll('#ini > div').forEach(d=>d.style.display=((d.dataset.g==='man')===P.man)?'':'none');
+  
+  ['a1','a2','v1','v2'].forEach(k=>{document.getElementById('r_'+k).disabled=document.getElementById('s_'+k).disabled=P.man;});
+  ['A1','T1','A2','T2'].forEach(k=>{document.getElementById('r_'+k).disabled=document.getElementById('s_'+k).disabled=!P.man;});
+  
+  const E=i=>mm[i]*(q0[i]*q0[i]+(qd0[i]/w[i])**2),e1=E(0),e2=E(1),T=e1+e2||1;
+  document.getElementById('ro').textContent=`Participación inicial total (energía modal): modo 1 = ${(100*e1/T).toFixed(1)} % · modo 2 = ${(100*e2/T).toFixed(1)} %`;
+  Tmax=Math.min(6*2*Math.PI/w[0],60);
+  const wr=[];
+  [[P.fh1,P.Om1,'Ω₁'],[P.fh2,P.Om2,'Ω₂']].forEach(([on,O,n])=>{if(on&&!P.damp)[0,1].forEach(i=>{if(Math.abs(O-w[i])<1e-3*w[i])wr.push(`${n} = ω${i+1}`);});});
+  [[P.fi1,P.tt1,'t₁'],[P.fi2,P.tt2,'t₂']].forEach(([on,tj,n])=>{if(on&&tj>Tmax)wr.push(`${n} = ${tj} s queda fuera de la ventana mostrada (${Tmax.toFixed(1)} s)`);});
+  document.getElementById('warn').textContent=wr.length?'⚠ '+wr.join(' · ')+(wr.some(x=>x.includes('ω'))?' — resonancia sin amortiguamiento: la respuesta no está acotada. Cambia la frecuencia o activa el amortiguamiento.':''):'';
+  if(t>Tmax)t=0;
+}
+
+const AMP=[[0,0,0],[0,0,0]];let VK=1;
+let t=0,tm=0,Tmax=10,run=true,last=performance.now();
+const cv=document.getElementById('cv'),cvm=document.getElementById('cvm'),pl=[document.getElementById('pl1'),document.getElementById('pl2')];
+function fit(c,h){const r=devicePixelRatio||1,w=c.clientWidth;c.style.height=h+'px';c.width=w*r;c.height=h*r;const g=c.getContext('2d');g.setTransform(r,0,0,r,0,0);return [g,w,h];}
+function spring(g,x1,x2,y,n=9,A=7){
+  g.beginPath();g.moveTo(x1,y);const L=x2-x1,s=Math.min(10,L*0.15);
+  g.lineTo(x1+s,y);const seg=(L-2*s)/n;
+  for(let i=0;i<n;i++){g.lineTo(x1+s+seg*(i+0.5),y+(i%2?A:-A));}
+  g.lineTo(x2-s,y);g.lineTo(x2,y);g.stroke();
+}
+function cart(g,xc,y,m,col,lab){
+  const w=34+m*8,h=24;
+  g.fillStyle=col;g.fillRect(xc-w/2,y-h/2-6,w,h);
+  g.fillStyle='#000';g.beginPath();g.arc(xc-w/3,y+h/2-3,5,0,7);g.arc(xc+w/3,y+h/2-3,5,0,7);g.fill();
+  g.fillStyle='#fff';g.font='bold 12px system-ui';g.textAlign='center';g.fillText(lab,xc,y-h/2+10);
+}
+function track(g,W,y,x1,x2,col,title){
+  const L=14,R=W-14,u=W*0.13*VK,e1=W/3,e2=2*W/3;
+  const p1=e1+x1*u,p2=e2+x2*u,w1=34+P.m1*8,w2=34+P.m2*8;
+  g.strokeStyle=css('--bd');g.lineWidth=2;g.beginPath();g.moveTo(L,y+24);g.lineTo(R,y+24);g.stroke();
+  g.fillStyle=css('--mu');g.fillRect(L-4,y-26,4,52);g.fillRect(R,y-26,4,52);
+  g.strokeStyle=css('--mu');g.lineWidth=1.5;
+  spring(g,L,p1-w1/2,y-6);spring(g,p1+w1/2,p2-w2/2,y-6);spring(g,p2+w2/2,R,y-6);
+  cart(g,p1,y,P.m1,col,'m₁');cart(g,p2,y,P.m2,col,'m₂');
+  g.fillStyle=css('--mu');g.font='12px system-ui';g.textAlign='left';g.fillText(title,L+4,y-34);
+}
+function drawModes(){
+  const [g,W,H]=fit(cvm,210);g.clearRect(0,0,W,H);VK=1;
+  [0,1].forEach(i=>{
+    const p=S.phi[i],A=0.8/Math.max(Math.abs(p[0]),1),c=A*Math.cos(S.w[i]*tm);
+    track(g,W,50+100*i,p[0]*c,c,css(i?'--c2':'--c1'),`Modo ${i+1} · ω = ${S.w[i].toFixed(2)} rad/s · φ = (${p[0].toFixed(3)}, 1)`);
+  });
+}
+function draw(){
+  drawModes();
+  const [g,W,H]=fit(cv,300);g.clearRect(0,0,W,H);VK=0.8/Math.max(AMP[0][0],AMP[1][0],1e-9);
+  const X=(i,j)=>xm(i,j,t);
+  track(g,W,50,X(0,0)+X(1,0),X(0,1)+X(1,1),css('--c0'),'Respuesta total');
+  track(g,W,150,X(0,0),X(0,1),css('--c1'),'Modo 1: q₁(t)·φ₁');
+  track(g,W,250,X(1,0),X(1,1),css('--c2'),'Modo 2: q₂(t)·φ₂');
+  for(let j=0;j<2;j++)plot(pl[j],j);
+  const tb=document.getElementById('amp'),f4=v=>v.toFixed(4);
+  const ht='<tr><th></th><th style="color:var(--c0)">Total</th><th style="color:var(--c1)">Modo 1</th><th style="color:var(--c2)">Modo 2</th></tr>'+AMP.map((r,j)=>`<tr><td>x${j+1}</td><td>${f4(r[0])}</td><td>${f4(r[1])}</td><td>${f4(r[2])}</td></tr>`).join('');
+  if(tb.dataset.h!==ht){tb.dataset.h=ht;tb.innerHTML=ht;}
+}
+function plot(c,j){
+  const [g,W,H]=fit(c,150);g.clearRect(0,0,W,H);
+  const N=600,tot=[],a=[],b=[],hh=[],pp=[],both=P.showH&&P.showP;let M=1e-9;
+  for(let k=0;k<=N;k++){
+    const tt=Tmax*k/N,u=xm(0,j,tt),v=xm(1,j,tt);a.push(u);b.push(v);tot.push(u+v);M=Math.max(M,Math.abs(u),Math.abs(v),Math.abs(u+v));
+    if(both){let h=0,p=0;[0,1].forEach(i=>{h+=S.phi[i][j]*qh(i,tt);p+=S.phi[i][j]*qp(i,tt);});hh.push(h);pp.push(p);M=Math.max(M,Math.abs(h),Math.abs(p));}
+  }
+  const px=k=>30+(W-38)*k/N,py=v=>H/2-(H/2-14)*v/M;
+  g.strokeStyle=css('--bd');g.lineWidth=1;g.beginPath();g.moveTo(30,H/2);g.lineTo(W-8,H/2);g.moveTo(30,4);g.lineTo(30,H-4);g.stroke();
+  g.fillStyle=css('--mu');g.font='11px system-ui';g.textAlign='left';g.fillText(`x${j+1}(t)`,34,12);g.textAlign='right';g.fillText('t = '+Tmax.toFixed(1)+' s',W-8,H-4);
+  g.fillText(M.toFixed(2),28,16);
+  const L=[[a,'--c1',1.2,[5,4]],[b,'--c2',1.2,[5,4]],[tot,'--c0',2,[]]];
+  if(both)L.unshift([hh,'--mu',1.3,[2,3]],[pp,'--ac',1.3,[2,3]]);
+  L.forEach(([s,col,lw,d])=>{
+    g.strokeStyle=css(col);g.lineWidth=lw;g.setLineDash(d);g.beginPath();
+    s.forEach((v,k)=>k?g.lineTo(px(k),py(v)):g.moveTo(px(k),py(v)));g.stroke();});
+  g.font='10px system-ui';g.textAlign='right';
+  [[tot,'--c0','A tot'],[a,'--c1','A₁'],[b,'--c2','A₂']].forEach(([sr,col,nm],n)=>{
+    const A=sr.reduce((m,v)=>Math.max(m,Math.abs(v)),0);
+    g.strokeStyle=css(col);g.fillStyle=css(col);g.lineWidth=0.9;g.setLineDash([1,3]);
+    [A,-A].forEach(v=>{g.beginPath();g.moveTo(30,py(v));g.lineTo(W-8,py(v));g.stroke();});
+    AMP[j][n]=A;g.setLineDash([]);g.fillText(`${nm} = ${A.toFixed(3)}`,W-10-n*88,py(A)-3);
+  });
+  g.setLineDash([]);g.strokeStyle=css('--ac');g.lineWidth=1.5;
+  const cx=30+(W-38)*t/Tmax;g.beginPath();g.moveTo(cx,2);g.lineTo(cx,H-2);g.stroke();
+}
+function loop(now){
+  const dt=Math.min((now-last)/1000,0.05);last=now;
+  if(run){const k=dt*P.sp*(2*Math.PI/S.w[0])/3;t+=k;tm+=k;if(t>Tmax)t=0;}
+  draw();requestAnimationFrame(loop);
+}
+function setMan(m){P.man=m;upd();}
+function setA(a1,a2){P.man=false;P.a1=a1;P.a2=a2;P.v1=P.v2=0;t=0;upd();}
+function modeInit(i){const p=S.phi[i],A=0.8/Math.max(Math.abs(p[0]),1);P.man=false;P.a1=p[0]*A;P.a2=A;P.v1=P.v2=0;t=0;upd();}
+document.getElementById('dmp').onchange=e=>{P.damp=e.target.checked;upd();};
+[1,2].forEach(n=>document.getElementById('ft'+n).onchange=e=>{P['fh'+n]=e.target.value==='h';P['fi'+n]=e.target.value==='i';upd();});
+document.getElementById('shH').onchange=e=>{P.showH=e.target.checked;};
+document.getElementById('shP').onchange=e=>{P.showP=e.target.checked;};
+
+document.querySelectorAll('.bp').forEach(b=>b.onclick=()=>{run=!run;document.querySelectorAll('.bp').forEach(x=>x.textContent=run?'⏸ Pausa':'▶ Seguir');});
+document.getElementById('br').onclick=()=>{t=0;tm=0;};
+
+const LIM={m1:[1e-3,1e4,'La masa debe ser positiva'],m2:[1e-3,1e4,'La masa debe ser positiva'],k1:[1e-3,1e7,'La rigidez debe ser positiva'],k2:[1e-3,1e7,'La rigidez debe ser positiva'],k3:[1e-3,1e7,'La rigidez debe ser positiva'],
+ al:[0,1e3,'α no puede ser negativo'],be:[0,1e2,'β no puede ser negativo'],a1:[-10,10],a2:[-10,10],v1:[-100,100],v2:[-100,100],
+ F1:[-1e6,1e6],F2:[-1e6,1e6],I1:[-1e6,1e6],I2:[-1e6,1e6],Om1:[1e-3,1e4,'La frecuencia debe ser positiva'],Om2:[1e-3,1e4,'La frecuencia debe ser positiva'],
+ tt1:[0,1e3,'El instante no puede ser negativo'],tt2:[0,1e3,'El instante no puede ser negativo'],ps1:[-360,360],ps2:[-360,360]};
+Object.entries(LIM).forEach(([k,[lo,hi,msg]])=>{
+  const el=document.getElementById('r_'+k);if(!el)return;
+  const er=document.createElement('small');er.className='err';er.style.display='none';el.insertAdjacentElement('afterend',er);
+  const bad=m=>{el.classList.add('bad');er.textContent=m;er.style.display='block';};
+  const ok=()=>{el.classList.remove('bad');er.style.display='none';};
+  el.addEventListener('input',e=>{const v=parseFloat(el.value);
+    if(!isFinite(v)){e.stopImmediatePropagation();bad('Introduce un número');return;}
+    if(v<lo||v>hi){e.stopImmediatePropagation();bad((msg?msg+'. ':'')+`Rango válido: ${lo} a ${hi}`);return;}
+    ok();},true);
+  el.addEventListener('change',()=>{if(el.classList.contains('bad')){el.value=+(+P[k]).toPrecision(6);ok();}});
+});
+upd();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
