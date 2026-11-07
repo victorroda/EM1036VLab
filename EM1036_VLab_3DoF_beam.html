@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Superposición modal viga biapoyada y voladizo</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b2330;--mu:#5d6878;--bd:#d9dde4;--c0:#1f2937;--c1:#2563eb;--c2:#ea580c;--c3:#16a34a;--ac:#0f766e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10141b;--card:#1a2029;--tx:#e8ecf2;--mu:#9aa5b5;--bd:#2d3644;--c0:#e5e7eb;--c1:#60a5fa;--c2:#fb923c;--c3:#4ade80;--ac:#2dd4bf}}
+:root[data-theme="dark"]{--bg:#10141b;--card:#1a2029;--tx:#e8ecf2;--mu:#9aa5b5;--bd:#2d3644;--c0:#e5e7eb;--c1:#60a5fa;--c2:#fb923c;--c3:#4ade80;--ac:#2dd4bf}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:12px}
+h1{font-size:19px;margin:4px 0 2px}h2{font-size:14px;margin:0 0 6px}
+p.s{color:var(--mu);margin:0 0 10px;font-size:13px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px;margin-bottom:10px}
+canvas{width:100%;display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px 12px;margin-bottom:6px}
+label{font-size:12px;color:var(--mu);display:block}
+.ck{display:flex;gap:8px;align-items:center;color:var(--tx);font-size:14px;margin:8px 0 4px}
+input[type=number],select{width:100%;padding:6px 8px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font-size:14px}
+input:disabled{opacity:.45}input.bad{border-color:#dc2626;outline:1px solid #dc2626}
+small.err{color:#dc2626;font-size:11px;display:none}
+button{background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 11px;font-size:13px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.leg{font-size:12px;color:var(--mu);display:flex;gap:12px;flex-wrap:wrap;margin-top:4px}
+.leg i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:4px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+td,th{padding:3px 7px;border-bottom:1px solid var(--bd);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+.eq{font-size:12.5px;color:var(--mu);margin-top:6px}
+summary{font-size:13px;margin:8px 0;cursor:pointer}
+</style></head><body>
+<h1>Virtual lab: modal superposition in a 3-DOF beam</h1>
+<p class="s">Steel beam with lumped masses at A, B, C · proportional damping C = αM + βK · impulse and harmonic excitation.</p>
+
+<div class="card">
+  <h2>Model</h2>
+  <label class="ck"><input type="checkbox" id="dmp" checked> Proportional damping (C = αM + βK)</label>
+  <div class="grid" id="gm"></div>
+  <h2 style="margin-top:10px">Modal properties</h2>
+  <div class="tw"><table id="tmo"></table></div>
+  <details><summary>Lumped masses and matrices D, K, M, C, B</summary>
+    <div class="tw"><table id="tm"></table></div><div class="grid" id="mx" style="margin-top:8px"></div></details>
+  <div class="eq">Modes normalised so that the third component equals 1. ζᵣ = c̃ᵣ/(2 m̃ᵣ ωᵣ).</div>
+</div>
+
+<div class="card">
+  <h2>Mode shapes</h2>
+  <div class="btns"><button class="bp">⏸ Pause</button></div>
+  <canvas id="cvm"></canvas>
+</div>
+
+<div class="card">
+  <h2>Excitation (particular solution)</h2>
+  <div class="grid" id="gl"></div>
+  <div class="grid" id="gi"></div>
+  <div class="grid" id="gh"></div>
+  <div class="eq" id="warn" style="color:#c2410c"></div>
+  <div class="eq" id="mfv" style="color:var(--tx);line-height:1.7"></div>
+  <div class="eq">Harmonic: steady state ηᵣ = Re[ Bⱼᵣ F₀ e^(iψ) e^(iΩt) / (k̃ᵣ − Ω²m̃ᵣ + iΩc̃ᵣ) ]. Impulse: ηᵣ = Bⱼᵣ J/(m̃ᵣ ω_dᵣ) · e^(−ζᵣωᵣτ) sin(ω_dᵣ τ), τ = t − t₀ ≥ 0.</div>
+</div>
+
+<div class="card">
+  <h2>Initial conditions (homogeneous solution)</h2>
+  <div class="grid" id="ic"></div>
+  <div class="eq">The homogeneous part is adjusted so the total response satisfies u(0), u̇(0): ηᵣ,h(0) = ηᵣ(0) − ηᵣ,p(0). With zero initial conditions it is the transient that completes the response from rest.</div>
+</div>
+
+<div class="card">
+  <h2>Response</h2>
+  <div class="btns">
+    <label class="ck" style="margin:0"><input type="checkbox" id="shH" checked> Homogeneous</label>
+    <label class="ck" style="margin:0"><input type="checkbox" id="shP" checked> Particular</label>
+    <button class="bp">⏸ Pause</button><button id="br">↺ Restart</button>
+  </div>
+  <canvas id="cv"></canvas>
+  <div class="eq">Rows: total response and contribution of each mode (same scale). Animation scale is adjusted to the maximum total displacement.</div>
+  <canvas id="p0" style="margin-top:8px"></canvas><canvas id="p1" style="margin-top:6px"></canvas><canvas id="p2" style="margin-top:6px"></canvas>
+  <div class="leg"><span><i style="background:var(--c0)"></i>Total</span><span><i style="background:var(--c1)"></i>Mode 1</span><span><i style="background:var(--c2)"></i>Mode 2</span><span><i style="background:var(--c3)"></i>Mode 3</span><span><i style="background:var(--mu)"></i>Homogeneous</span><span><i style="background:var(--ac)"></i>Particular</span></div>
+  <div class="eq" style="margin-top:8px;color:var(--tx)"><b>Maximum |displacement| (mm) in the time window</b></div>
+  <div class="tw"><table id="amp"></table></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const P={load:'imp',pt:0,cfg:'cant',L:500,b:29.9,t:1,E:207,rho:7850,damp:true,al:0.2,be:0.001,Tw:0,
+ imp:true,J:0.01,jI:0,t0:0,har:false,F0:2,Om:50,ps:0,jH:0,xa:0,xb:0,xc:0,va:0,vb:0,vc:0,showH:true,showP:true,sp:1};
+const LIM={L:[10,5000],b:[1,1000],t:[0.01,100],E:[1,1000],rho:[100,3e4],al:[0,1e3],be:[0,10],Tw:[0,100],J:[-1e3,1e3],t0:[0,100],F0:[-1e4,1e4],Om:[1e-3,1e5],ps:[-360,360],
+ xa:[-1e3,1e3],xb:[-1e3,1e3],xc:[-1e3,1e3],va:[-1e5,1e5],vb:[-1e5,1e5],vc:[-1e5,1e5]};
+const D2R=Math.PI/180,PT='ABC';
+function mkf(id,list){list.forEach(([k,n])=>{
+  const d=document.createElement('div');
+  d.innerHTML=`<label>${n}</label><input type="number" step="any" id="r_${k}" value="${P[k]}"><small class="err"></small>`;$(id).appendChild(d);
+  const inp=d.querySelector('input'),er=d.querySelector('small');
+  inp.addEventListener('input',()=>{const v=parseFloat(inp.value),[lo,hi]=LIM[k];
+    if(!isFinite(v)||v<lo||v>hi){inp.classList.add('bad');er.textContent=!isFinite(v)?'Enter a number':`Valid range: ${lo} to ${hi}`;er.style.display='block';return;}
+    inp.classList.remove('bad');er.style.display='none';P[k]=v;t=0;upd();});
+  inp.addEventListener('change',()=>{if(inp.classList.contains('bad')){inp.value=P[k];inp.classList.remove('bad');er.style.display='none';}});
+});}
+function sel(cid,key,label,opts,cb){const d=document.createElement('div');
+  d.innerHTML=`<label>${label}</label><select>${opts.map(([v,n])=>`<option value="${v}">${n}</option>`).join('')}</select>`;
+  $(cid).prepend(d);const s=d.querySelector('select');s.id='s_'+key;s.value=P[key];
+  s.onchange=()=>{P[key]=typeof P[key]==='number'?+s.value:s.value;if(cb)cb();t=0;upd();};}
+mkf('gm',[['L','L (mm)'],['b','b (mm)'],['t','t (mm)'],['E','E (GPa)'],['rho','ρ (kg/m³)'],['al','α (s⁻¹)'],['be','β (s)'],['Tw','Window (s, 0 = auto)']]);
+sel('gm','cfg','Beam type',[['cant','Cantilever'],['ss','Simply supported']]);
+sel('gl','pt','Point of application',[[0,'A'],[1,'B'],[2,'C']],()=>{P.jI=P.jH=P.pt;});
+sel('gl','load','Load type (one at a time)',[['imp','Impulse J·δ(t − t₀)'],['har','Harmonic force F₀ cos(Ωt + ψ)'],['none','No load']],()=>{P.imp=P.load==='imp';P.har=P.load==='har';});
+mkf('gi',[['J','J (N·s)'],['t0','t₀ (s)']]);
+mkf('gh',[['F0','F₀ (N)'],['Om','Ω (rad/s)'],['ps','ψ (°)']]);
+mkf('ic',[['xa','u_A(0) (mm)'],['xb','u_B(0) (mm)'],['xc','u_C(0) (mm)'],['va','v_A(0) (mm/s)'],['vb','v_B(0) (mm/s)'],['vc','v_C(0) (mm/s)']]);
+
+//CORE-START
+function inv3(a){const[[A,B,C],[D,E,F],[G,H,I]]=a;const det=A*(E*I-F*H)-B*(D*I-F*G)+C*(D*H-E*G);
+ return [[E*I-F*H,-(B*I-C*H),B*F-C*E],[-(D*I-F*G),A*I-C*G,-(A*F-C*D)],[D*H-E*G,-(A*H-B*G),A*E-B*D]].map(r=>r.map(v=>v/det));}
+function jacobi(A0){const A=A0.map(r=>r.slice()),V=[[1,0,0],[0,1,0],[0,0,1]];
+ for(let sw=0;sw<80;sw++){const sc=A[0][0]**2+A[1][1]**2+A[2][2]**2;let off=A[0][1]**2+A[0][2]**2+A[1][2]**2;if(off<=1e-26*sc)break;
+  for(let p=0;p<2;p++)for(let q=p+1;q<3;q++){if(A[p][q]===0)continue;
+   const th=(A[q][q]-A[p][p])/(2*A[p][q]),tt=(th>=0?1:-1)/(Math.abs(th)+Math.sqrt(th*th+1)),c=1/Math.sqrt(tt*tt+1),s=tt*c;
+   for(let k=0;k<3;k++){const x=A[k][p],y=A[k][q];A[k][p]=c*x-s*y;A[k][q]=s*x+c*y;}
+   for(let k=0;k<3;k++){const x=A[p][k],y=A[q][k];A[p][k]=c*x-s*y;A[q][k]=s*x+c*y;}
+   for(let k=0;k<3;k++){const x=V[k][p],y=V[k][q];V[k][p]=c*x-s*y;V[k][q]=s*x+c*y;}}}
+ return {vals:[A[0][0],A[1][1],A[2][2]],V};}
+let S,Tmax=2;
+function solve(){
+ const L=P.L/1e3,b=P.b/1e3,t=P.t/1e3,E=P.E*1e9,EI=E*b*t**3/12,cant=P.cfg==='cant';
+ const xs=cant?[L/3,2*L/3,L]:[L/4,L/2,3*L/4],Ls=cant?[L/3,L/3,L/6]:[L/4,L/4,L/4];
+ const f=cant?(x,a)=>(x<=a?x*x*(3*a-x):a*a*(3*x-a))/(6*EI)
+  :(x,a)=>{const bb=L-a;return x<=a?bb*x*(L*L-x*x-bb*bb)/(6*EI*L):a*(L-x)*(L*L-(L-x)**2-a*a)/(6*EI*L);};
+ const D=xs.map(x=>xs.map(a=>f(x,a)));let K0=inv3(D);const K=K0.map((r,i)=>r.map((v,j)=>(v+K0[j][i])/2));
+ const m=Ls.map(l=>P.rho*b*t*l),M=[0,1,2].map(i=>[0,1,2].map(j=>i===j?m[i]:0));
+ const C=K.map((r,i)=>r.map((v,j)=>P.damp?P.be*v+(i===j?P.al*m[i]:0):0));
+ const {vals,V}=jacobi(K.map((r,i)=>r.map((v,j)=>v/Math.sqrt(m[i]*m[j]))));
+ const ord=[0,1,2].sort((a,c)=>vals[a]-vals[c]);
+ const Bm=ord.map(o=>{const u=[0,1,2].map(k=>V[k][o]/Math.sqrt(m[k]));return u.map(x=>x/u[2]);});
+ const w=ord.map(o=>Math.sqrt(Math.max(vals[o],0)));
+ const quad=(A,v)=>{let s=0;for(let i=0;i<3;i++)for(let j=0;j<3;j++)s+=v[i]*A[i][j]*v[j];return s;};
+ const mt=Bm.map(v=>v.reduce((s,x,k)=>s+m[k]*x*x,0)),kt=Bm.map(v=>quad(K,v)),ct=Bm.map(v=>quad(C,v)),z=ct.map((c,r)=>c/(2*mt[r]*w[r]));
+ const O=P.Om,ps=P.ps*D2R;
+ const G=Bm.map((v,r)=>{if(!P.har)return [0,0];const N=v[P.jH]*P.F0,Nr=N*Math.cos(ps),Ni=N*Math.sin(ps),dr0=kt[r]-O*O*mt[r],di=O*ct[r],dr=(Math.abs(dr0)+Math.abs(di)<1e-12)?1e-12:dr0,d=dr*dr+di*di;
+  return [(Nr*dr+Ni*di)/d,(Ni*dr-Nr*di)/d];});
+ const imp=Bm.map((v,r)=>P.imp?v[P.jI]*P.J/mt[r]:0);
+ const x0=[P.xa,P.xb,P.xc].map(v=>v*1e-3),v0=[P.va,P.vb,P.vc].map(v=>v*1e-3);
+ const q0=Bm.map((v,r)=>v.reduce((s,x,k)=>s+m[k]*x*x0[k],0)/mt[r]),qd0=Bm.map((v,r)=>v.reduce((s,x,k)=>s+m[k]*x*v0[k],0)/mt[r]);
+ S={cant,L,xs,Ls,m,D,K,M,C,Bm,B:[0,1,2].map(k=>Bm.map(v=>v[k])),vals:ord.map(o=>vals[o]),w,z,mt,kt,ct,G,imp,qh0:q0.map((x,r)=>x-G[r][0]),qhd0:qd0.map((x,r)=>x+O*G[r][1])};
+}
+function free(r,t,q,v){const W=S.w[r],Z=S.z[r],c=v+Z*W*q,e=Math.exp(-Z*W*t);
+ if(Z<1){const wd=W*Math.sqrt(1-Z*Z);return e*(q*Math.cos(wd*t)+c/wd*Math.sin(wd*t));}
+ const s=Math.max(W*Math.sqrt(Z*Z-1),1e-6);return e*(q*Math.cosh(s*t)+c/s*Math.sinh(s*t));}
+const qh=(r,t)=>free(r,t,S.qh0[r],S.qhd0[r]);
+function qp(r,t){let x=0;if(P.har)x+=S.G[r][0]*Math.cos(P.Om*t)-S.G[r][1]*Math.sin(P.Om*t);
+ if(P.imp&&t>=P.t0)x+=S.imp[r]*free(r,t-P.t0,0,1);return x;}
+const q=(r,t)=>(P.showH?qh(r,t):0)+(P.showP?qp(r,t):0);
+//CORE-END
+
+const N=1200;let TS,t=0,tm=0,run=true,last=performance.now();const AMP=[[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+const f5=v=>{const a=Math.abs(v);return a===0?'0':(a>=1e-2&&a<1e5)?String(+v.toPrecision(5)):v.toExponential(3);};
+function render(){
+ const mat=A=>'<table>'+A.map(r=>'<tr>'+r.map(v=>`<td>${f5(v)}</td>`).join('')+'</tr>').join('')+'</table>';
+ $('mx').innerHTML=[['D (m/N)',S.D],['K (N/m)',S.K],['M (kg)',S.M],['C (N·s/m)',S.C],['B = [U₁ U₂ U₃]',S.B]].map(([n,A])=>`<div><b style="font-size:12px">${n}</b><div class="tw">${mat(A)}</div></div>`).join('');
+ $('tm').innerHTML='<tr><th>Mass</th><th>DOF</th><th>Lᵢ (mm)</th><th>mᵢ (kg)</th></tr>'+[0,1,2].map(i=>`<tr><td>m${i+1}</td><td>u${i+1} (${PT[i]})</td><td>${f5(S.Ls[i]*1e3)}</td><td>${f5(S.m[i])}</td></tr>`).join('');
+ $('tmo').innerHTML='<tr><th>Mode</th><th>λ (s⁻²)</th><th>ω (rad/s)</th><th>f (Hz)</th><th>m̃ (kg)</th><th>k̃ (N/m)</th><th>c̃ (N·s/m)</th><th>ζ</th></tr>'+
+  [0,1,2].map(r=>{const z=S.z[r];return `<tr><td>${r+1}</td><td>${f5(S.vals[r])}</td><td>${f5(S.w[r])}</td><td>${f5(S.w[r]/2/Math.PI)}</td><td>${f5(S.mt[r])}</td><td>${f5(S.kt[r])}</td><td>${f5(S.ct[r])}</td><td>${f5(z)} ${z<1?'(under)':z>1?'(over)':'(crit.)'}</td></tr>`;}).join('');
+}
+function upd(){
+ solve();render();
+ ['al','be'].forEach(k=>$('r_'+k).disabled=!P.damp);
+ $('gi').style.display=P.imp?'':'none';$('gh').style.display=P.har?'':'none';
+ Tmax=P.Tw>0?P.Tw:Math.min(6*2*Math.PI/S.w[0],60);if(t>Tmax)t=0;
+ TS={Qh:[0,1,2].map(()=>new Float64Array(N+1)),Qp:[0,1,2].map(()=>new Float64Array(N+1))};
+ for(let i=0;i<=N;i++){const tt=Tmax*i/N;for(let r=0;r<3;r++){TS.Qh[r][i]=qh(r,tt);TS.Qp[r][i]=qp(r,tt);}}
+ const w=[];
+ if(P.har&&!P.damp)[0,1,2].forEach(r=>{if(Math.abs(P.Om-S.w[r])<1e-3*S.w[r])w.push(`⚠ Ω = ω${r+1}: resonance without damping, the response is unbounded.`);});
+ if(P.imp&&P.t0>Tmax)w.push(`⚠ t₀ = ${P.t0} s is outside the window shown (${Tmax.toFixed(2)} s).`);
+ [0,1,2].forEach(r=>{if(S.z[r]>=1)w.push(`ℹ Mode ${r+1} is not underdamped (ζ = ${S.z[r].toFixed(3)}).`);});
+ $('warn').textContent=w.join(' ');
+ {const el=$('mfv');
+  if(!P.imp&&!P.har)el.textContent='Modal force vector: F̃(t) = Bᵀ F(t) = 0 (no load applied).';
+  else{const j=P.imp?P.jI:P.jH,X=PT[j],A=P.imp?P.J:P.F0,un=P.imp?'N·s':'N',sym=P.imp?'J':'F₀',ts=P.imp?'δ(t − t₀)':'cos(Ωt + ψ)',
+   tf=P.imp?`δ(t${P.t0>0?' − '+f5(P.t0):''})`:`cos(${f5(P.Om)}·t${P.ps?(P.ps>0?' + ':' − ')+f5(Math.abs(P.ps))+'°':''})`;
+   el.innerHTML=`<b>Modal force vector</b> (load at point ${X}): F̃(t) = Bᵀ e<sub>${X}</sub> ${sym} ${ts}<br>`+
+    S.Bm.map((v,r)=>`F̃<sub>${r+1}</sub>(t) = B<sub>${X}${r+1}</sub> ${sym} ${ts} = ${f5(v[j])} × ${f5(A)} ${un} · ${tf} = <b>${f5(v[j]*A)} ${un}</b> · ${tf}`).join('<br>')+
+    `<br>F̃(t) = [ ${S.Bm.map(v=>f5(v[j]*A)).join(', ')} ]ᵀ ${un} · ${tf}`;}}
+}
+function fit(c,h){const r=devicePixelRatio||1,w=c.clientWidth;c.style.height=h+'px';c.width=w*r;c.height=h*r;const g=c.getContext('2d');g.setTransform(r,0,0,r,0,0);return [g,w,h];}
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function beam(g,W,yc,u,pxs,col,title){
+ const L0=30,L1=W-30,w=L1-L0,cant=S.cant;
+ const xs=cant?[0,1/3,2/3,1]:[0,.25,.5,.75,1],ys=cant?[0,u[0],u[1],u[2]]:[0,u[0],u[1],u[2],0],n=xs.length;
+ const sl=xs.map((x,i)=>i===0?(cant?0:(ys[1]-ys[0])/(xs[1]-xs[0])):i===n-1?(ys[i]-ys[i-1])/(xs[i]-xs[i-1]):(ys[i+1]-ys[i-1])/(xs[i+1]-xs[i-1]));
+ g.strokeStyle=css('--bd');g.lineWidth=1;g.setLineDash([3,4]);g.beginPath();g.moveTo(L0,yc);g.lineTo(L1,yc);g.stroke();g.setLineDash([]);
+ g.fillStyle=css('--mu');
+ if(cant)g.fillRect(L0-6,yc-24,6,48);else[L0,L1].forEach(x=>{g.beginPath();g.moveTo(x,yc);g.lineTo(x-8,yc+15);g.lineTo(x+8,yc+15);g.fill();});
+ g.strokeStyle=col;g.lineWidth=3;g.beginPath();
+ for(let i=0;i<n-1;i++){const h=xs[i+1]-xs[i];for(let s=0;s<=12;s++){const a=s/12,a2=a*a,a3=a2*a;
+  const y=(2*a3-3*a2+1)*ys[i]+(a3-2*a2+a)*h*sl[i]+(-2*a3+3*a2)*ys[i+1]+(a3-a2)*h*sl[i+1];
+  const X=L0+(xs[i]+a*h)*w,Y=yc-y*pxs;(i===0&&s===0)?g.moveTo(X,Y):g.lineTo(X,Y);}}
+ g.stroke();g.font='11px system-ui';g.textAlign='center';
+ (cant?[1/3,2/3,1]:[.25,.5,.75]).forEach((xn,k)=>{const X=L0+xn*w,Y=yc-u[k]*pxs;g.fillStyle=col;g.beginPath();g.arc(X,Y,5,0,7);g.fill();g.fillStyle=css('--mu');g.fillText(PT[k],X,yc+30);});
+ g.textAlign='left';g.fillText(title,L0,yc-38);
+}
+function draw(){
+ {const [g,W,H]=fit($('cvm'),270);g.clearRect(0,0,W,H);
+  for(let r=0;r<3;r++){const B=S.Bm[r],mx=Math.max(...B.map(Math.abs)),c=Math.cos(S.w[r]*tm);
+   beam(g,W,56+90*r,B.map(x=>x*c),30/mx,css(['--c1','--c2','--c3'][r]),`Mode ${r+1} · ω = ${f5(S.w[r])} rad/s · f = ${f5(S.w[r]/2/Math.PI)} Hz · U = (${B.map(x=>x.toFixed(3)).join(', ')})`);}}
+ const [g,W,H]=fit($('cv'),360);g.clearRect(0,0,W,H);
+ const mx=Math.max(AMP[0][0],AMP[1][0],AMP[2][0])*1e-3,pxs=mx>1e-12?34/mx:0;
+ const qs=[0,1,2].map(r=>q(r,t)),col=['--c0','--c1','--c2','--c3'].map(css);
+ beam(g,W,56,[0,1,2].map(k=>S.Bm.reduce((s,v,r)=>s+v[k]*qs[r],0)),pxs,col[0],`Total response · t = ${t.toFixed(3)} s`);
+ for(let r=0;r<3;r++)beam(g,W,146+90*r,S.Bm[r].map(x=>x*qs[r]),pxs,col[r+1],`Mode ${r+1} contribution`);
+ for(let k=0;k<3;k++)plot($('p'+k),k);
+ const ht='<tr><th></th><th style="color:var(--c0)">Total</th><th style="color:var(--c1)">Mode 1</th><th style="color:var(--c2)">Mode 2</th><th style="color:var(--c3)">Mode 3</th></tr>'+
+  AMP.map((a,k)=>`<tr><td>u_${PT[k]}</td>${a.map(v=>`<td>${f5(v)}</td>`).join('')}</tr>`).join('');
+ if($('amp').dataset.h!==ht){$('amp').dataset.h=ht;$('amp').innerHTML=ht;}
+}
+function plot(c,k){
+ const [g,W,H]=fit(c,140);g.clearRect(0,0,W,H);
+ const tot=new Float64Array(N+1),ms=[0,1,2].map(()=>new Float64Array(N+1)),hh=[],pp=[],both=P.showH&&P.showP,A=[0,0,0,0];let M=1e-12;
+ for(let i=0;i<=N;i++){let s=0;
+  for(let r=0;r<3;r++){const qv=(P.showH?TS.Qh[r][i]:0)+(P.showP?TS.Qp[r][i]:0),v=S.Bm[r][k]*qv*1e3;ms[r][i]=v;s+=v;A[r+1]=Math.max(A[r+1],Math.abs(v));}
+  tot[i]=s;A[0]=Math.max(A[0],Math.abs(s));
+  if(both){let h=0,p=0;for(let r=0;r<3;r++){h+=S.Bm[r][k]*TS.Qh[r][i]*1e3;p+=S.Bm[r][k]*TS.Qp[r][i]*1e3;}hh.push(h);pp.push(p);M=Math.max(M,Math.abs(h),Math.abs(p));}}
+ M=Math.max(M,...A);AMP[k]=A;
+ const px=i=>34+(W-42)*i/N,py=v=>H/2-(H/2-14)*v/M;
+ g.strokeStyle=css('--bd');g.lineWidth=1;g.beginPath();g.moveTo(34,H/2);g.lineTo(W-8,H/2);g.moveTo(34,4);g.lineTo(34,H-4);g.stroke();
+ g.fillStyle=css('--mu');g.font='11px system-ui';g.textAlign='left';g.fillText(`u_${PT[k]}(t) [mm]`,38,12);g.textAlign='right';g.fillText(`t = ${Tmax.toFixed(2)} s`,W-8,H-4);g.fillText(M.toPrecision(3),32,16);
+ const L=[[ms[0],'--c1',1.2,[5,4]],[ms[1],'--c2',1.2,[5,4]],[ms[2],'--c3',1.2,[5,4]],[tot,'--c0',2,[]]];
+ if(both)L.unshift([hh,'--mu',1.3,[2,3]],[pp,'--ac',1.3,[2,3]]);
+ L.forEach(([s,cl,lw,d])=>{g.strokeStyle=css(cl);g.lineWidth=lw;g.setLineDash(d);g.beginPath();for(let i=0;i<=N;i++)i?g.lineTo(px(i),py(s[i])):g.moveTo(px(i),py(s[i]));g.stroke();});
+ g.setLineDash([]);g.strokeStyle=css('--ac');g.lineWidth=1.5;const cx=34+(W-42)*t/Tmax;g.beginPath();g.moveTo(cx,2);g.lineTo(cx,H-2);g.stroke();
+}
+function loop(now){const dt=Math.min((now-last)/1000,0.05);last=now;
+ if(run){const k=dt*P.sp*(2*Math.PI/S.w[0])/3;t+=k;tm+=k;if(t>Tmax)t=0;}
+ draw();requestAnimationFrame(loop);}
+$('dmp').onchange=e=>{P.damp=e.target.checked;upd();};
+$('shH').onchange=e=>{P.showH=e.target.checked;};$('shP').onchange=e=>{P.showP=e.target.checked;};
+document.querySelectorAll('.bp').forEach(b=>b.onclick=()=>{run=!run;document.querySelectorAll('.bp').forEach(x=>x.textContent=run?'⏸ Pause':'▶ Resume');});
+$('br').onclick=()=>{t=0;tm=0;};
+upd();requestAnimationFrame(loop);
+</script></body></html>

@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vibration Lab - EM1036</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#edf0f3;--panel:#fff;--ink:#16233b;--mute:#5a6678;--line:#cfd6df;--grid:#e6eaf0;--a:#c0392b;--b:#1d6f8c;--c:#6f8a1f}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1420;--panel:#151d2c;--ink:#e6ebf3;--mute:#93a0b5;--line:#2c3850;--grid:#1f2a3d;--a:#ef6a58;--b:#4fb3d3;--c:#a9c24a}}
+:root[data-theme="dark"]{--bg:#0e1420;--panel:#151d2c;--ink:#e6ebf3;--mute:#93a0b5;--line:#2c3850;--grid:#1f2a3d;--a:#ef6a58;--b:#4fb3d3;--c:#a9c24a}
+*,*:before,*:after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 40px}
+h1{font:600 34px/1.1 Newsreader,Georgia,serif;margin:0 0 6px}
+header p{margin:0 0 16px;color:var(--mute);max-width:70ch}
+button,select,input[type=text],input[type=number]{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+button{cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--b);outline-offset:2px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.bar input[type=range]{flex:1;min-width:140px}
+.lab{display:grid;grid-template-columns:310px minmax(0,1fr);gap:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;align-self:start}
+.panel h2{font:600 18px Newsreader,Georgia,serif;margin:0 0 10px}
+.panel h3{font:600 15px Newsreader,Georgia,serif;margin:14px 0 8px;padding-top:10px;border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:1fr auto;gap:0 8px;margin-bottom:10px;font-size:13px}
+.nu{color:var(--mute);white-space:nowrap;font-size:13px}.nu input{width:88px;padding:2px 6px;text-align:right}
+.row input[type=range]{grid-column:1/3;width:100%;accent-color:var(--b)}
+.sel{display:block;margin-bottom:10px;font-size:13px}.sel select,.sel input[type=text]{width:100%;margin-top:4px}
+.chk{display:flex;gap:8px;align-items:center;margin-bottom:10px;font-size:13px}
+.btns{display:flex;flex-wrap:wrap;gap:6px}.btns button{font-size:13px;padding:5px 9px}
+canvas{display:block;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.an{height:230px}
+.ro{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:12px 0}
+.ro div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.ro b{display:block;font-size:16px;font-variant-numeric:tabular-nums}.ro span{font-size:12px;color:var(--mute)}
+.pl{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pl canvas{height:250px}.pl #lp{grid-column:1/3;height:170px}
+.tip{color:var(--mute);font-size:13px;max-width:80ch}
+@media(max-width:860px){.lab{grid-template-columns:1fr}.pl{grid-template-columns:1fr}.pl #lp{grid-column:1}}
+</style></head>
+<body><div class="wrap">
+<header><h1>Vibration Lab</h1>
+<p>EM1036 Machine Dynamics and Vibrations, Universitat Jaume I. Choose a system, decide whether it is damped, apply a load, and compare the simulation with the theory.</p></header>
+<div class="bar">
+<button id="pp">Pause</button><button id="rs">Restart</button>
+<label>Speed <select id="sp"><option value="1">1x</option><option value=".5">0.5x</option><option value=".25">0.25x</option></select></label>
+<label>Duration (s) <input type="number" id="du" value="10" min="0.1" step="any" style="width:80px"></label><label>Δt (s) <input type="number" id="dt" value="0.003" min="0.0001" step="any" style="width:90px"></label><span id="dtw" class="tip"></span>
+<input id="sc" type="range" min="0" max="1" step=".001" value="0" aria-label="Time">
+</div>
+<div class="lab">
+<aside class="panel"><h2>Problem</h2>
+<label class="sel">Degrees of freedom<select id="dof"><option value="1">One</option><option value="2">Two</option></select></label>
+<label class="sel">System<select id="sys"></select></label>
+<label class="chk"><input type="checkbox" id="dmp" checked> Damped</label>
+<label class="sel">Loading<select id="load"><option value="free">Free response</option><option value="harm" selected>Harmonic</option><option value="per">Periodic</option><option value="imp">Impulse</option><option value="arb">Arbitrary</option></select></label>
+<div id="sp1"></div><h3>Initial conditions</h3><div id="sp2"></div><h3>Loading</h3><div id="sp3"></div>
+</aside>
+<main><canvas id="an" class="an"></canvas><div id="ro" class="ro"></div>
+<div class="pl"><canvas id="tp"></canvas><canvas id="fp"></canvas><canvas id="lp"></canvas></div>
+<p class="tip">Damping in two-degree-of-freedom systems is proportional to stiffness (C = &beta;K). Impulses are applied at t = 0 and change the initial velocity through M<sup>-1</sup>. Loads are F<sub>i</sub>(t) = f<sub>i</sub>&middot;g(t).</p></main>
+</div></div>
+<script>
+const $=s=>document.querySelector(s),css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt=v=>Math.abs(v)>=100?v.toFixed(0):String(+v.toPrecision(3)),R=180/Math.PI;let N=3000,dtI=.003;
+const dm=[['beta','Damping factor β (C = βK)','s',0,.02,.0005]];
+const SYS={
+t1:{n:1,lin:1,l:'Translation of a mass',nm:[['x','mm',1e3,'N']],def:{m:2,k:800,c:6},p:[['m','Mass m','kg',.1,20,.1],['k','Stiffness k','N/m',10,5000,10]],dp:[['c','Damping c','N·s/m',0,60,.5]],mat:P=>({M:[[P.m]],K:[[P.k]]})},
+r1:{n:1,l:'Rotation of a disc',nm:[['θ','°',R,'N·m']],def:{J:.1,kt:40,c:.3},p:[['J','Moment of inertia J','kg·m²',.01,2,.01],['kt','Torsional stiffness kt','N·m/rad',1,500,1]],dp:[['c','Torsional damping ct','N·m·s/rad',0,5,.05]],mat:P=>({M:[[P.J]],K:[[P.kt]]})},
+t2:{n:2,lin:1,l:'Translation of two rigid bodies',nm:[['x₁','mm',1e3,'N'],['x₂','mm',1e3,'N']],def:{m1:1,m2:1,k1:800,k2:400,k3:800,beta:.002},
+ p:[['m1','Mass m₁','kg',.1,20,.1],['m2','Mass m₂','kg',.1,20,.1],['k1','Spring k₁ (wall–m₁)','N/m',0,5000,10],['k2','Spring k₂ (m₁–m₂)','N/m',10,5000,10],['k3','Spring k₃ (m₂–wall)','N/m',0,5000,10]],dp:dm,
+ mat:P=>({M:[[P.m1,0],[0,P.m2]],K:[[P.k1+P.k2,-P.k2],[-P.k2,P.k2+P.k3]]})},
+r2:{n:2,l:'Rotation of two rigid bodies',nm:[['θ₁','°',R,'N·m'],['θ₂','°',R,'N·m']],def:{J1:.1,J2:.1,kt1:40,kt2:20,kt3:40,beta:.002},
+ p:[['J1','Inertia J₁','kg·m²',.01,2,.01],['J2','Inertia J₂','kg·m²',.01,2,.01],['kt1','Torsional spring kt₁','N·m/rad',0,500,5],['kt2','Torsional spring kt₂','N·m/rad',5,500,5],['kt3','Torsional spring kt₃','N·m/rad',0,500,5]],dp:dm,
+ mat:P=>({M:[[P.J1,0],[0,P.J2]],K:[[P.kt1+P.kt2,-P.kt2],[-P.kt2,P.kt2+P.kt3]]})},
+rt:{n:2,l:'Rotation and translation of one rigid body',nm:[['x','mm',1e3,'N'],['θ','°',R,'N·m']],def:{m:2,J:.17,k1:500,k2:500,a:.4,b:.6,beta:.002},
+ p:[['m','Mass m','kg',.1,20,.1],['J','Inertia J (at CG)','kg·m²',.01,2,.01],['k1','Spring k₁ (left)','N/m',10,5000,10],['k2','Spring k₂ (right)','N/m',10,5000,10],['a','Distance a (CG to k₁)','m',.05,1,.05],['b','Distance b (CG to k₂)','m',.05,1,.05]],dp:dm,
+ bar:P=>({a:P.a,b:P.b}),dis:(P,q)=>[q[0]-P.a*q[1],q[0]+P.b*q[1],q[0]],
+ mat:P=>{const c=P.k2*P.b-P.k1*P.a;return{M:[[P.m,0],[0,P.J]],K:[[P.k1+P.k2,c],[c,P.k1*P.a**2+P.k2*P.b**2]]}}},
+pts:{n:2,l:'Translation of two points of the same rigid body',nm:[['xA','mm',1e3,'N'],['xB','mm',1e3,'N']],def:{m:2,J:.17,L:1,ra:.4,k1:500,k2:500,beta:.002},
+ p:[['m','Mass m','kg',.1,20,.1],['J','Inertia J (at CG)','kg·m²',.01,2,.01],['L','Length AB','m',.2,2,.05],['ra','CG position a/L (from A)','',.05,.95,.05],['k1','Spring k₁ (at A)','N/m',10,5000,10],['k2','Spring k₂ (at B)','N/m',10,5000,10]],dp:dm,
+ bar:P=>{const a=P.ra*P.L;return{a,b:P.L-a}},dis:(P,q)=>{const a=P.ra*P.L;return[q[0],q[1],((P.L-a)*q[0]+a*q[1])/P.L]},
+ mat:P=>{const L=P.L,a=P.ra*L,b=L-a,j=P.J/L/L,o=P.m*a*b/L/L-j;return{M:[[P.m*b*b/L/L+j,o],[o,P.m*a*a/L/L+j]],K:[[P.k1,0],[0,P.k2]]}}}};
+const ARB=[['Step','1'],['Ramp over 1 s','min(t,1)'],['Rectangular pulse (1 s)','t<1?1:0'],['Half-sine pulse (1 s)','t<1?sin(PI*t):0'],['Decaying oscillation','exp(-t)*sin(10*t)'],['Chirp','sin(2*t*t)']];
+const P={sys:'t1',damped:true,load:'harm',wave:'sq',expr:'t<1?1:0',w:12};
+let dur=10,t=0,play=!matchMedia('(prefers-reduced-motion: reduce)').matches,speed=1,last=0,S,G;
+const set=h=>$('#ro').innerHTML=h.map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join('');
+function mk(host,defs){host.innerHTML='';defs.forEach(([k,l,u,min,max,s])=>{const r=document.createElement('label');r.className='row';
+ r.innerHTML=`<span>${l}</span><span class="nu"><input type="number" step="any"> ${u}</span><input type="range" min="${min}" max="${max}" step="${s}">`;const i=r.querySelector('input[type=range]'),o=r.querySelector('.nu input');
+ const st=v=>{P[k]=+v;i.value=v;o.value=+(+v).toPrecision(6)};st(P[k]);i.oninput=()=>{st(i.value);calc()};o.oninput=()=>{const v=parseFloat(o.value);if(isFinite(v)){P[k]=v;i.value=v;calc()}};o.onchange=()=>st(P[k]);host.appendChild(r)})}
+function setSys(id){P.sys=id;Object.assign(P,{q0:0,q1:0,v0:0,v1:0,f0:10,f1:0,I0:1,I1:0,w:12},SYS[id].def)}
+function fillSys(){const n=+$('#dof').value;$('#sys').innerHTML=Object.entries(SYS).filter(([k,s])=>s.n==n).map(([k,s])=>`<option value="${k}">${s.l}</option>`).join('');setSys($('#sys').value);buildUI();calc()}
+function buildUI(){const s=SYS[P.sys],nm=s.nm,L=P.load;mk($('#sp1'),s.p.concat(P.damped?s.dp:[]));
+ mk($('#sp2'),nm.map((c,i)=>['q'+i,'Initial '+c[0],c[1],-40,40,1]).concat(nm.map((c,i)=>['v'+i,'Initial velocity of '+c[0],c[1]+'/s',-500,500,10])));
+ const w=['w','Frequency ω'+(L=='per'?' (fundamental)':''),'rad/s',1,100,.5],fa=nm.map((c,i)=>['f'+i,'Amplitude on '+c[0],c[3],-50,50,.5]);
+ mk($('#sp3'),L=='harm'||L=='per'?[w].concat(fa):L=='imp'?nm.map((c,i)=>['I'+i,'Impulse on '+c[0],c[3]+'·s',-20,20,.1]):L=='arb'?fa:[]);
+ const h=$('#sp3');
+ if(L=='per'){h.insertAdjacentHTML('afterbegin','<label class="sel">Waveform<select id="wv"><option value="sq">Square</option><option value="tr">Triangle</option><option value="sw">Sawtooth</option><option value="hw">Half-wave rectified sine</option></select></label>');$('#wv').value=P.wave;$('#wv').onchange=e=>{P.wave=e.target.value;calc()}}
+ if(L=='arb'){h.insertAdjacentHTML('afterbegin','<label class="sel">Preset<select id="pr">'+ARB.map(a=>`<option value="${a[1]}">${a[0]}</option>`).join('')+'</select></label><label class="sel">g(t) = <input type="text" id="ex"></label><div id="er" class="tip"></div>');
+  $('#ex').value=P.expr;$('#pr').onchange=e=>{$('#ex').value=P.expr=e.target.value;calc()};$('#ex').oninput=e=>{P.expr=e.target.value;calc()}}
+}
+function build(){const s=SYS[P.sys],{M,K}=s.mat(P),n=s.n,C=n==1?[[P.damped?P.c:0]]:K.map(r=>r.map(v=>P.damped?P.beta*v:0));return{s,M,K,C,n,sc:s.nm.map(c=>c[2])}}
+function eig(B){const{M,K,n}=B;if(n==1)return[{w:Math.sqrt(K[0][0]/M[0][0]),v:[1]}];const d=M[0][0]*M[1][1]-M[0][1]**2,Mi=[[M[1][1]/d,-M[0][1]/d],[-M[0][1]/d,M[0][0]/d]],
+ A=Mi.map(r=>[0,1].map(j=>r[0]*K[0][j]+r[1]*K[1][j])),tr=A[0][0]+A[1][1],q=Math.sqrt(Math.max(0,(tr/2)**2-(A[0][0]*A[1][1]-A[0][1]*A[1][0])));
+ return[tr/2-q,tr/2+q].map(l=>{let u=[A[0][1],l-A[0][0]],v=[l-A[1][1],A[1][0]];if(Math.hypot(...v)>Math.hypot(...u))u=v;if(Math.hypot(...u)<1e-12)u=Math.abs(l-A[0][0])<Math.abs(l-A[1][1])?[1,0]:[0,1];
+  const m=Math.max(Math.abs(u[0]),Math.abs(u[1]));u=u.map(x=>x/m);return{w:Math.sqrt(Math.max(l,0)),v:u}})}
+function rk4(f,y0,h){const O=y0.map(()=>new Float64Array(N+1));let y=y0.slice();for(let i=0;i<=N;i++){y.forEach((v,j)=>O[j][i]=v);if(i==N)break;const t=i*h,
+ a=f(t,y),b=f(t+h/2,y.map((v,j)=>v+h/2*a[j])),c=f(t+h/2,y.map((v,j)=>v+h/2*b[j])),d=f(t+h,y.map((v,j)=>v+h*c[j]));y=y.map((v,j)=>v+h/6*(a[j]+2*b[j]+2*c[j]+d[j]))}return O}
+function gfun(){const L=P.load,w=P.w;if(L=='harm')return t=>Math.sin(w*t);
+ if(L=='per'){const W={sq:p=>p<.5?1:-1,tr:p=>p<.25?4*p:p<.75?2-4*p:4*p-4,sw:p=>2*p-1,hw:p=>p<.5?Math.sin(2*Math.PI*p):0}[P.wave];return t=>W(((t*w/(2*Math.PI))%1+1)%1)}
+ if(L=='arb'){try{const f=new Function('t','with(Math){return '+P.expr+'}');f(0);$('#er').textContent='';return t=>{const v=f(t);return isFinite(v)?v:0}}catch(e){$('#er').textContent='Invalid expression: '+e.message;return()=>0}}return()=>0}
+const sym=a=>{let m=1e-9;a.forEach(x=>x.forEach(v=>m=Math.max(m,Math.abs(v))));return m};
+function calc(){const NN=Math.min(200000,Math.max(10,Math.ceil(dur/dtI))),B=build(),{M,K,C,n,sc,s}=B,h=dur/NN,d=n==1?M[0][0]:M[0][0]*M[1][1]-M[0][1]**2;if(!(d>0)||!isFinite(d)){set([['Check inputs','masses and inertias must be positive']]);return}N=NN;const Mi=n==1?[[1/d]]:[[M[1][1]/d,-M[0][1]/d],[-M[0][1]/d,M[0][0]/d]],
+ ix=[...Array(n).keys()],fv=ix.map(i=>P['f'+i]||0);G=gfun();const on=P.load=='harm'||P.load=='per'||P.load=='arb';
+ const v0=ix.map(i=>P['v'+i]/sc[i]);if(P.load=='imp')ix.forEach(i=>ix.forEach(j=>v0[i]+=Mi[i][j]*(P['I'+j]||0)));
+ const f=(t,y)=>{const gt=on?G(t):0,a=ix.map(i=>{let r=fv[i]*gt;ix.forEach(j=>r-=C[i][j]*y[n+j]+K[i][j]*y[j]);return r});return y.slice(n).concat(ix.map(i=>ix.reduce((z,j)=>z+Mi[i][j]*a[j],0)))};
+ const q=rk4(f,ix.map(i=>P['q'+i]/sc[i]).concat(v0),h).slice(0,n);let vm=0;
+ if(s.dis)for(let i=0;i<=N;i++)vm=Math.max(vm,...s.dis(P,q.map(a=>a[i])).map(Math.abs));
+ S={B,q,Mx:sym(q),vm:vm||1e-9,fv,on,pk:q.map((a,k)=>sym([a])*sc[k])};const E=eig(B);$('#dtw').textContent=N+' steps of '+fmt(h)+' s'+(E[E.length-1].w*h>1?' (Δt too large for the highest frequency, reduce it)':'');
+ if(n==1){const z=P.damped?C[0][0]/(2*Math.sqrt(K[0][0]*M[0][0])):0;set([[fmt(E[0].w),'ωn (rad/s)'],[fmt(E[0].w/6.2832),'fn (Hz)'],[fmt(z),'damping ratio ζ'],[z<1?fmt(E[0].w*Math.sqrt(1-z*z)):'overdamped','ωd (rad/s)'],[fmt(2*Math.sqrt(K[0][0]*M[0][0])),'critical damping'],[fmt(sym(q)*sc[0]),'peak |'+s.nm[0][0]+'| ('+s.nm[0][1]+')']])}
+ else set([[fmt(E[0].w),'ω1 (rad/s)'],[fmt(E[1].w),'ω2 (rad/s)'],[fmt(E[0].w/6.2832),'f1 (Hz)'],[fmt(E[1].w/6.2832),'f2 (Hz)'],['['+E[0].v.map(fmt).join(', ')+']','mode 1 shape (SI)'],['['+E[1].v.map(fmt).join(', ')+']','mode 2 shape (SI)'],[fmt(Math.max(...q.map((a,k)=>sym([a])*sc[k]))),'peak response (display units)']])}
+function frf(B,w,fe){const{M,K,C,n,sc}=B,z=(i,j)=>[K[i][j]-w*w*M[i][j],w*C[i][j]];if(n==1)return[Math.abs(fe[0])/(Math.hypot(...z(0,0))||1e-12)*sc[0]];
+ const cm=(a,b)=>[a[0]*b[0]-a[1]*b[1],a[0]*b[1]+a[1]*b[0]],z11=z(0,0),z22=z(1,1),z12=z(0,1),z21=z(1,0),p=cm(z11,z22),r=cm(z12,z21),D=Math.hypot(p[0]-r[0],p[1]-r[1])||1e-12;
+ return[Math.hypot(z22[0]*fe[0]-z12[0]*fe[1],z22[1]*fe[0]-z12[1]*fe[1])/D*sc[0],Math.hypot(z11[0]*fe[1]-z21[0]*fe[0],z11[1]*fe[1]-z21[1]*fe[0])/D*sc[1]]}
+/* ---- drawing ---- */
+function sz(cv){const d=devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;if(cv.width!==Math.round(W*d)||cv.height!==Math.round(H*d)){cv.width=Math.round(W*d);cv.height=Math.round(H*d)}
+ const g=cv.getContext('2d');g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,W,H);g.font='11px "IBM Plex Sans",sans-serif';return{g,W,H}}
+function ticks(a,b,n){const s=(b-a)/n,p=Math.pow(10,Math.floor(Math.log10(s))),f=s/p,st=(f<1.5?1:f<3?2:f<7?5:10)*p,r=[];for(let v=Math.ceil(a/st)*st;v<=b+1e-9*st;v+=st)r.push(+v.toPrecision(12));return r}
+function plot(cv,Sr,o){const{g,W,H}=sz(cv),L=50,R=12,T=24,B=34,pw=W-L-R,ph=H-T-B,ly=o.logy,[xa,xb]=o.xr,[ya,yb]=o.yr;
+ const tv=v=>ly?Math.log10(Math.max(v,ya)):v,A=tv(ya),Bv=tv(yb),px=x=>L+(x-xa)/(xb-xa)*pw,py=y=>T+(1-(tv(y)-A)/(Bv-A))*ph;
+ g.strokeStyle=css('--grid');g.fillStyle=css('--mute');g.lineWidth=1;g.textAlign='center';
+ ticks(xa,xb,6).forEach(v=>{g.beginPath();g.moveTo(px(v),T);g.lineTo(px(v),T+ph);g.stroke();g.fillText(fmt(v),px(v),T+ph+14)});g.textAlign='right';
+ (ly?(()=>{const a=[];for(let e=Math.ceil(Math.log10(ya));e<=Math.log10(yb)+1e-9;e++)a.push(10**e);return a})():ticks(ya,yb,o.ny||5)).forEach(v=>{g.beginPath();g.moveTo(L,py(v));g.lineTo(L+pw,py(v));g.stroke();g.fillText(fmt(v),L-5,py(v)+4)});
+ g.strokeStyle=css('--line');g.strokeRect(L,T,pw,ph);g.save();g.beginPath();g.rect(L,T,pw,ph);g.clip();
+ (o.vl||[]).forEach(v=>{g.strokeStyle=v.c;g.setLineDash(v.d?[4,4]:[]);g.beginPath();g.moveTo(px(v.x),T);g.lineTo(px(v.x),T+ph);g.stroke()});
+ g.setLineDash([]);g.lineWidth=1.8;Sr.forEach(s=>{g.strokeStyle=s.c;g.beginPath();s.x.forEach((x,i)=>{const X=px(x),Y=py(s.y[i]);i?g.lineTo(X,Y):g.moveTo(X,Y)});g.stroke()});
+ (o.mk||[]).forEach(m=>{g.fillStyle=m.c;g.beginPath();g.arc(px(m.x),py(m.y),5,0,7);g.fill()});g.restore();
+ g.textAlign='left';g.fillStyle=css('--ink');g.fillText(o.title,L,14);g.textAlign='right';g.fillStyle=css('--mute');g.fillText(o.xl,W-R,H-5);
+ let lx=W-R;Sr.forEach(s=>{if(s.n){g.fillStyle=s.c;g.fillText(s.n,lx,14);lx-=g.measureText(s.n).width+10}})}
+function spring(g,xa,xb,y){const L=xb-xa,e=Math.min(14,L*.15),n=16;g.beginPath();g.moveTo(xa,y);g.lineTo(xa+e,y);for(let i=0;i<n;i++)g.lineTo(xa+e+(L-2*e)*(i+.5)/n,y+(i%2?8:-8));g.lineTo(xb-e,y);g.lineTo(xb,y);g.stroke()}
+function damper(g,xa,xb,y){const L=xb-xa,c0=xa+L*.15,c1=xa+L*.6,p=xa+L*.4;g.beginPath();g.moveTo(xa,y);g.lineTo(c0,y);g.moveTo(c1,y-8);g.lineTo(c0,y-8);g.lineTo(c0,y+8);g.lineTo(c1,y+8);g.moveTo(p,y-5);g.lineTo(p,y+5);g.moveTo(p,y);g.lineTo(xb,y);g.stroke()}
+function arrow(g,x,y,dx,dy){const l=Math.hypot(dx,dy);if(l<2)return;const ux=dx/l,uy=dy/l;g.strokeStyle=g.fillStyle=css('--c');g.lineWidth=3;g.beginPath();g.moveTo(x,y);g.lineTo(x+dx,y+dy);g.stroke();
+ g.beginPath();g.moveTo(x+dx+ux*9,y+dy+uy*9);g.lineTo(x+dx-uy*6,y+dy+ux*6);g.lineTo(x+dx+uy*6,y+dy-ux*6);g.fill()}
+function render(){const{B,q,Mx,vm,fv,on}=S,s=B.s,n=B.n,i=Math.min(N,Math.round(t/dur*N)),{g,W,H}=sz($('#an')),ink=css('--ink'),cy=H/2,qi=q.map(a=>a[i]),gt=on?G(t):0,sc=B.sc;
+ g.lineWidth=2;g.strokeStyle=ink;
+ if(!s.bar){const rot=!s.lin,mw=rot?24:56,mh=rot?76:60,vs=rot?Math.PI/3/Mx:Math.min(40,W*.06)/Mx,c=qi.map((v,k)=>W*(k+1)/(n+1)+(rot?0:v*vs)),e=[14];
+  c.forEach(x=>e.push(x-mw/2,x+mw/2));e.push(W-14);g.fillStyle=css('--b');g.fillRect(2,cy-36,12,72);g.fillRect(W-14,cy-36,12,72);
+  for(let k=0;k<=n;k++){spring(g,e[2*k],e[2*k+1],cy-16);if(P.damped)damper(g,e[2*k],e[2*k+1],cy+16)}
+  c.forEach((x,k)=>{g.fillStyle=css(k?'--c':'--a');g.fillRect(x-mw/2,cy-mh/2,mw,mh);g.fillStyle='#fff';g.textAlign='center';g.font='600 13px "IBM Plex Sans",sans-serif';
+   if(rot){g.beginPath();g.arc(x,cy-28*Math.sin(qi[k]*vs),5,0,7);g.fill();g.fillText('J'+(n>1?k+1:''),x,cy+mh/2+16)}else g.fillText('m'+(n>1?k+1:''),x,cy+5);
+   if(on&&fv[k])arrow(g,x,cy-mh/2-16,Math.sign(fv[k])*45*gt,0)})}
+ else{const{a,b}=s.bar(P),U=Math.min(W*.6,320)/(a+b),cx=W/2,xl=cx-a*U,xr=cx+b*U,fl=H-10,vs=48/vm,y0=H*.42,d=s.dis(P,qi),yl=y0-d[0]*vs,yr=y0-d[1]*vs,yc=y0-d[2]*vs;
+  g.fillStyle=css('--b');g.fillRect(10,fl,W-20,6);
+  [[xl,yl],[xr,yr]].forEach(([x,y])=>{[[0,spring],[16,damper]].forEach(([o,fn])=>{if(o&&!P.damped)return;g.save();g.translate(x+o,y);g.rotate(Math.PI/2);fn(g,0,fl-y,0);g.restore()})});
+  g.strokeStyle=css('--a');g.lineWidth=9;g.beginPath();g.moveTo(xl,yl);g.lineTo(xr,yr);g.stroke();g.fillStyle='#fff';g.beginPath();g.arc(cx,yc,4,0,7);g.fill();
+  if(on){if(P.sys=='pts'){if(fv[0])arrow(g,xl,yl-12,0,-Math.sign(fv[0])*gt*38);if(fv[1])arrow(g,xr,yr-12,0,-Math.sign(fv[1])*gt*38)}else if(fv[0])arrow(g,cx,yc-12,0,-Math.sign(fv[0])*gt*38)}}
+ const st=Math.ceil(N/1500),ts=Float64Array.from({length:Math.floor(N/st)+1},(_,j)=>j*st*dur/N),X=q.map((a,k)=>Array.from(ts,(_,j)=>a[j*st]*sc[k])),m=Math.max(...S.pk)*1.1,cols=[css('--a'),css('--c')];
+ plot($('#tp'),X.map((y,k)=>({x:ts,y,c:cols[k],n:s.nm[k][0]+' ('+s.nm[k][1]+')'})),{title:'Response',xl:'time (s)',xr:[0,dur],yr:[-m,m],vl:[{x:t,c:ink}]});
+ const E=eig(B),wmax=Math.max(E[E.length-1].w*1.6,on&&P.w*1.1||0,10),ws=Array.from({length:400},(_,j)=>wmax*(j+1)/400),use=on&&fv.some(v=>v),fe=use?fv:[1,0],R2=ws.map(w=>frf(B,w,fe)),all=R2.flat().filter(v=>v>0),
+ hi=10**Math.ceil(Math.log10(Math.max(...all,1e-9))),lo=Math.max(10**Math.floor(Math.log10(Math.min(...all,hi))),hi/1e6),hm=P.load=='harm'||P.load=='per',fw=frf(B,P.w,fe);
+ plot($('#fp'),R2[0].map((_,k)=>({x:ws,y:R2.map(r=>r[k]),c:cols[k],n:s.nm[k][0]})),{title:'Steady-state amplitude vs ω '+(use?'(current loads)':'(unit load on 1st coordinate)'),xl:'ω (rad/s)',logy:1,xr:[0,wmax],yr:[lo,hi],
+  vl:E.map(e=>({x:e.w,c:css('--mute'),d:1})),mk:hm?fw.map((y,k)=>({x:P.w,y,c:cols[k]})):[]});
+ const Fs=P.load=='imp'||!on?[]:fv.map((f,k)=>({x:ts,y:Array.from(ts,x=>f*G(x)),c:cols[k],n:'F on '+s.nm[k][0]})).filter((_,k)=>fv[k]),lm=sym(Fs.map(a=>a.y)),
+ ttl={free:'No external load: free response from the initial conditions',imp:'Impulse applied at t = 0 (initial velocity jump); free response afterwards'}[P.load]||'Load history F(t) = f·g(t)';
+ plot($('#lp'),Fs,{title:ttl,xl:'time (s)',xr:[0,dur],yr:[-lm*1.1,lm*1.1],ny:4,vl:[{x:t,c:ink}]})}
+/* ---- wiring ---- */
+$('#dof').onchange=fillSys;$('#sys').onchange=e=>{setSys(e.target.value);buildUI();calc()};
+$('#dmp').onchange=e=>{P.damped=e.target.checked;buildUI();calc()};$('#load').onchange=e=>{P.load=e.target.value;buildUI();calc()};
+
+const pp=()=>$('#pp').textContent=play?'Pause':'Play';
+$('#pp').onclick=()=>{if(!play&&t>=dur)t=0;play=!play;pp()};$('#rs').onclick=()=>{t=0;play=true;pp()};$('#sp').onchange=e=>speed=+e.target.value;
+$('#du').oninput=e=>{const v=parseFloat(e.target.value);if(v>0){dur=v;t=0;calc()}};$('#dt').oninput=e=>{const v=parseFloat(e.target.value);if(v>0){dtI=v;calc()}};$('#sc').oninput=e=>{t=+e.target.value*dur;play=false;pp()};
+function frame(ts){const el=Math.min(.05,(ts-last)/1e3);last=ts;if(play){t+=el*speed;if(t>=dur){t=dur;play=false;pp()}}$('#sc').value=t/dur;render();requestAnimationFrame(frame)}
+fillSys();pp();requestAnimationFrame(frame);
+</script></body></html>
