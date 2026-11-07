@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Laboratorio virtual: viga en voladizo</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--tx:#1d1d1b;--mut:#6b6b66;--bd:#dcdcd6;--c1:#1f6feb;--c2:#d9480f;--c3:#2f9e44;--c4:#9c36b5;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--card:#212120;--tx:#ecebe6;--mut:#a3a39b;--bd:#3a3a37;--c1:#58a6ff;--c2:#ff8b4d;--c3:#5fd17a;--c4:#d68bf0;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161615;--card:#212120;--tx:#ecebe6;--mut:#a3a39b;--bd:#3a3a37;--c1:#58a6ff;--c2:#ff8b4d;--c3:#5fd17a;--c4:#d68bf0;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:16px}
+h1{font-size:1.35rem;margin:.2em 0}h2{font-size:1rem;margin:0 0 .6em}
+p.s{color:var(--mut);margin:0 0 14px}
+.g{display:grid;gap:14px;grid-template-columns:1fr 1fr}
+@media(max-width:700px){.g{grid-template-columns:1fr}}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;min-width:0}
+.f{grid-column:1/-1}
+label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;color:var(--mut);margin-top:8px}
+label b{color:var(--tx);font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%}
+input[type=number],select{width:100%;padding:5px 7px;border:1px solid var(--bd);border-radius:7px;background:var(--bg);color:var(--tx);font:inherit}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.9rem}
+th,td{padding:5px 6px;text-align:right;border-bottom:1px solid var(--bd)}th:first-child,td:first-child{text-align:left}
+canvas{width:100%;height:280px;display:block}
+.k{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--mut);margin-top:6px}
+.k i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:5px}
+small{color:var(--mut)}
+.g3{display:grid;gap:10px;grid-template-columns:repeat(3,1fr)}
+@media(max-width:700px){.g3{grid-template-columns:1fr}}
+.g3 canvas{height:240px}
+.mt{font-size:.85rem;font-weight:600;margin:8px 0 2px}
+</style></head><body><main>
+<h1>Laboratorio virtual: viga en voladizo</h1>
+<p class="s">Modelo teórico de Euler-Bernoulli frente a modelo de 3 GDL, con acelerómetros en L/3, 2L/3 y L y golpe con martillo instrumentado.</p>
+<div class="g">
+<section class="c"><h2>Material</h2>
+<div class="r2"><div><label>E (GPa)</label><input type="number" id="E" value="70" step="any" min="0"></div><div><label>ρ (kg/m³)</label><input type="number" id="rho" value="2700" step="any" min="0"></div></div>
+<label>Amortiguamiento ζ (%)</label><input type="number" id="z" value="1" step="any" min="0">
+<h2 style="margin-top:16px">Geometría de la viga (mm)</h2>
+<div class="r2" style="grid-template-columns:repeat(3,1fr)"><div><label>L <small>0–1000</small></label><input type="number" id="L" value="500" step="any" min="0" max="1000"></div><div><label>a <small>0–100</small></label><input type="number" id="a" value="30" step="any" min="0" max="100"></div><div><label>h <small>0–10</small></label><input type="number" id="h" value="5" step="any" min="0" max="10"></div></div>
+<p id="err" style="color:var(--c2);margin:8px 0 0;min-height:1.3em;font-size:.85rem"></p>
+</section>
+<section class="c"><h2>Frecuencias naturales</h2>
+<label>Grados de libertad del modelo</label><select id="ng"><option value="3">3</option><option value="6">6</option><option value="9">9</option><option value="12">12</option></select>
+<table style="margin-top:8px"><thead><tr><th>Modo</th><th>Teórico (Hz)</th><th><span id="hg">3</span> GDL (Hz)</th><th>Error</th></tr></thead><tbody id="tb"></tbody></table>
+<small>K = F⁻¹, con δij = xi²(3xj − xi)/(6EI) para xi ≤ xj<br>M = m·diag(1, …, 1, 0,5), con m = ρAL/N</small>
+</section>
+<section class="c f"><h2>Formas modales</h2>
+<div class="g3"><div><div class="mt" id="mt0"></div><canvas id="cm0"></canvas></div><div><div class="mt" id="mt1"></div><canvas id="cm1"></canvas></div><div><div class="mt" id="mt2"></div><canvas id="cm2"></canvas></div></div>
+<div class="k"><span><i style="border-color:var(--c2)"></i>Teórica</span><span><span style="color:var(--c1)">●</span> Modelo discreto (nodos)</span><span><span style="color:var(--c3)">◯</span> Acelerómetros A1, A2, A3 (L/3, 2L/3, L)</span><span>Normalizadas a 1 en el extremo</span></div>
+</section>
+<section class="c f"><h2>FRF (acelerancia)</h2>
+<div class="r2" style="max-width:420px"><div><label>Golpe en punto</label><select id="pj"><option value="0">1 (L/3)</option><option value="1">2 (2L/3)</option><option value="2" selected>3 (L)</option></select></div>
+<div><label>Acelerómetro en</label><select id="pi"><option value="0">1 (L/3)</option><option value="1">2 (2L/3)</option><option value="2" selected>3 (L)</option></select></div></div>
+<canvas id="cf"></canvas>
+<div class="k"><span><i style="border-color:var(--c1)"></i>Modelo discreto</span><span><i style="border-color:var(--c2);border-top-style:dashed"></i>Teórico (5 modos)</span><span>Eje y: |A| en dB re 1 (m/s²)/N</span></div>
+</section>
+<!-- RESPUESTA:INICIO (para quitar este apartado: borra desde aquí hasta RESPUESTA:FIN y el script marcado RESPUESTA al final del archivo) -->
+<section class="c f" id="resp"><style>#resp button{font:inherit;padding:5px 10px;border:1px solid var(--bd);border-radius:7px;background:var(--bg);color:var(--tx);cursor:pointer}#resp canvas{margin-top:10px}</style>
+<h2>Respuesta a una excitación: suma de modos</h2>
+<div class="r2" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+<div><label>Tipo de excitación</label><select id="rt"><option value="h">Fuerza armónica</option><option value="i">Impacto (martillo)</option></select></div>
+<div><label>Punto de excitación</label><select id="rj"><option value="0">A1 (L/3)</option><option value="1">A2 (2L/3)</option><option value="2" selected>A3 (L)</option></select></div>
+<div id="rh"><label>Frecuencia Ω <b id="rOv"></b></label><input type="range" id="rO" min="0" max="500" step="0.1" value="10"><div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button id="rf0">Ω = f₁</button><button id="rf1">Ω = f₂</button><button id="rf2">Ω = f₃</button></div></div>
+</div>
+<div style="display:flex;gap:12px;align-items:flex-end;margin-top:10px"><button id="rp">⏸ Pausa</button><div style="flex:1"><label style="margin-top:0">Instante <b id="rsv"></b></label><input type="range" id="rs" min="0" max="1" step="0.001" value="0"></div></div>
+<canvas id="rc1" style="height:300px"></canvas>
+<div class="k"><span><i style="border-color:var(--tx)"></i>Deformada total (todos los modos)</span><span><i style="border-color:var(--c1);border-top-style:dashed"></i>Modo 1</span><span><i style="border-color:var(--c2);border-top-style:dashed"></i>Modo 2</span><span><i style="border-color:var(--c4);border-top-style:dashed"></i>Modo 3</span><span><span style="color:var(--c3)">◯</span> A1–A3</span><span><span style="color:var(--c2)">▼</span> Excitación (F o I)</span></div>
+<h2 style="margin-top:16px">Aceleración en los acelerómetros</h2>
+<canvas id="rc2" style="height:220px"></canvas>
+<div class="k"><span><i style="border-color:var(--c1)"></i>A1</span><span><i style="border-color:var(--c2)"></i>A2</span><span><i style="border-color:var(--c4)"></i>A3</span><span>Fuerza de 1 N o impulso de 1 N·s; resultados normalizados</span></div>
+</section>
+<!-- RESPUESTA:FIN -->
+</div></main>
+<script>
+const $=id=>document.getElementById(id);
+const BL=[1.87510407,4.69409113,7.85475744];for(let n=3;n<5;n++)BL.push((2*n+1)*Math.PI/2);
+function inv(A){const n=A.length,M=A.map((r,i)=>r.concat(r.map((_,j)=>+(i===j))));
+for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;[M[c],M[p]]=[M[p],M[c]];const d=M[c][c];for(let j=0;j<2*n;j++)M[c][j]/=d;for(let r=0;r<n;r++)if(r!==c){const f=M[r][c];if(f)for(let j=0;j<2*n;j++)M[r][j]-=f*M[c][j]}}
+return M.map(r=>r.slice(n))}
+function jacobi(S){const n=S.length,V=S.map((r,i)=>r.map((_,j)=>+(i===j)));
+for(let it=0;it<100;it++){let off=0;for(let p=0;p<n-1;p++)for(let q=p+1;q<n;q++){
+if(Math.abs(S[p][q])<1e-14*(Math.abs(S[p][p])+Math.abs(S[q][q])))continue;off=1;
+const th=(S[q][q]-S[p][p])/(2*S[p][q]),t=Math.sign(th||1)/(Math.abs(th)+Math.sqrt(th*th+1)),c=1/Math.sqrt(t*t+1),s=t*c;
+for(let k=0;k<n;k++){const a=S[k][p],b=S[k][q];S[k][p]=c*a-s*b;S[k][q]=s*a+c*b;const u=V[k][p],w=V[k][q];V[k][p]=c*u-s*w;V[k][q]=s*u+c*w}
+for(let k=0;k<n;k++){const a=S[p][k],b=S[q][k];S[p][k]=c*a-s*b;S[q][k]=s*a+c*b}}
+if(!off)break}
+return {w2:S.map((r,i)=>r[i]),V}}
+function phiA(n,x,L){const b=BL[n]/L,bl=BL[n],sg=(Math.cosh(bl)+Math.cos(bl))/(Math.sinh(bl)+Math.sin(bl));
+return Math.cosh(b*x)-Math.cos(b*x)-sg*(Math.sinh(b*x)-Math.sin(b*x))}
+let D={};
+function calc(){
+const L=+$('L').value/1000,a=$('a').value*1e-3,h=$('h').value*1e-3,E=$('E').value*1e9,rho=+$('rho').value,z=$('z').value/100;
+const N=+$('ng').value,I=a*h**3/12,A=a*h,m=rho*A*L/N;
+const xs=[...Array(N)].map((_,i)=>(i+1)*L/N);
+const F=xs.map(xi=>xs.map(xj=>{const p=Math.min(xi,xj),q=Math.max(xi,xj);return p*p*(3*q-p)/(6*E*I)}));
+const Kb=inv(F),md=xs.map((_,i)=>i===N-1?.5*m:m);
+const S=Kb.map((r,i)=>r.map((v,j)=>(v+Kb[j][i])/2/Math.sqrt(md[i]*md[j])));
+const r=jacobi(S),idx=r.w2.map((_,i)=>i).sort((i,j)=>r.w2[i]-r.w2[j]);
+const wn=idx.map(i=>Math.sqrt(r.w2[i]));
+const Phi=idx.map(c=>{const v=xs.map((_,i)=>r.V[i][c]/Math.sqrt(md[i]));const sg=v[N-1]<0?-1:1;return v.map(x=>x*sg)}); // Phi[modo][nodo]
+const wa=BL.map(b=>b*b*Math.sqrt(E*I/(rho*A*L**4)));
+const ax=[N/3-1,2*N/3-1,N-1];
+const PA=wa.map((_,n)=>{const s=Math.sign(phiA(n,L,L));return ax.map(k=>s*phiA(n,xs[k],L))});
+D={L,m,rho,A,wn,Phi,wa,PA,z,xs,N,ax};
+}
+function FRF(i,j,w,num){let s={re:0,im:0};
+const N=num?D.N:5;for(let r=0;r<N;r++){const wr=num?D.wn[r]:D.wa[r],g=num?D.Phi[r][D.ax[i]]*D.Phi[r][D.ax[j]]:D.PA[r][i]*D.PA[r][j]/(D.rho*D.A*D.L);
+const re=wr*wr-w*w,im=2*D.z*wr*w,d=re*re+im*im;s.re+=g*re/d;s.im+=-g*im/d}
+return Math.hypot(s.re,s.im)*w*w}
+function plot(cv,series,xl,yl,xlab,ylab,extra){
+const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;
+const g=cv.getContext('2d');g.scale(dpr,dpr);const cs=getComputedStyle(document.documentElement);const col=n=>cs.getPropertyValue(n).trim();
+const P={l:46,r:10,t:8,b:30},X=x=>P.l+(x-xl[0])/(xl[1]-xl[0])*(W-P.l-P.r),Y=y=>H-P.b-(y-yl[0])/(yl[1]-yl[0])*(H-P.t-P.b);
+g.font='11px system-ui';g.fillStyle=col('--mut');g.strokeStyle=col('--bd');g.lineWidth=1;
+const tk=(lo,hi,n)=>{const st=(hi-lo)/n,p=Math.pow(10,Math.floor(Math.log10(st))),f=st/p,u=f<1.5?1:f<3.5?2:f<7.5?5:10,s=u*p,o=[];for(let v=Math.ceil(lo/s)*s;v<=hi+1e-9;v+=s)o.push(v);return o};
+g.textAlign='right';for(const v of tk(yl[0],yl[1],5)){const y=Y(v);g.beginPath();g.moveTo(P.l,y);g.lineTo(W-P.r,y);g.stroke();g.fillText(+v.toPrecision(3),P.l-5,y+4)}
+g.textAlign='center';for(const v of tk(xl[0],xl[1],6)){const x=X(v);g.beginPath();g.moveTo(x,P.t);g.lineTo(x,H-P.b);g.stroke();g.fillText(+v.toPrecision(3),x,H-P.b+14)}
+g.fillText(xlab,(W+P.l)/2,H-4);g.save();g.translate(11,H/2);g.rotate(-Math.PI/2);g.fillText(ylab,0,0);g.restore();
+g.save();g.beginPath();g.rect(P.l,P.t,W-P.l-P.r,H-P.t-P.b);g.clip();
+for(const s of series){g.strokeStyle=col(s.c);g.lineWidth=2;g.setLineDash(s.d?[6,4]:[]);g.beginPath();s.x.forEach((x,i)=>i?g.lineTo(X(x),Y(s.y[i])):g.moveTo(X(x),Y(s.y[i])));g.stroke()}
+g.setLineDash([]);if(extra)extra(g,X,Y,col);g.restore()}
+function draw(){
+const {L,wn,wa,Phi,PA,xs}=D,i=+$('pi').value,j=+$('pj').value;
+const fmax=Math.ceil(wa[2]/2/Math.PI*1.25/50)*50,N=700,fx=[],yn=[],ya=[];
+for(let k=1;k<=N;k++){const f=fmax*k/N,w=2*Math.PI*f;fx.push(f);yn.push(20*Math.log10(FRF(i,j,w,true)+1e-12));ya.push(20*Math.log10(FRF(i,j,w,false)+1e-12))}
+const all=yn.concat(ya),mx=Math.max(...all),mn=Math.max(Math.min(...all),mx-90);
+plot($('cf'),[{x:fx,y:ya,c:'--c2',d:1},{x:fx,y:yn,c:'--c1'}],[0,fmax],[Math.floor(mn/10)*10,Math.ceil(mx/10)*10+5],'Frecuencia (Hz)','|A| (dB)');
+for(let n=0;n<3;n++){const px=[],py=[];$('mt'+n).textContent='Modo '+(n+1);
+for(let k=0;k<=200;k++){const x=L*k/200;px.push(x);py.push(Math.sign(phiA(n,L,L))*phiA(n,x,L)/Math.abs(phiA(n,L,L))*1)}
+const sc=Phi[n][D.N-1];
+const ym=1.15*Math.max(1,...py.map(Math.abs),...Phi[n].map(v=>Math.abs(v/sc)));
+plot($('cm'+n),[{x:px,y:py,c:'--c2'}],[0,L],[-ym,ym],'x (m)','Desplaz. normalizado',(g,X,Y,col)=>{
+g.fillStyle=col('--c1');[[0,0]].concat(xs.map((x,k)=>[x,Phi[n][k]/sc])).forEach(([x,y])=>{g.beginPath();g.arc(X(x),Y(y),5,0,7);g.fill()});
+g.strokeStyle=col('--c1');g.lineWidth=1.5;g.beginPath();g.moveTo(X(0),Y(0));xs.forEach((x,k)=>g.lineTo(X(x),Y(Phi[n][k]/sc)));g.stroke();
+g.setLineDash([4,4]);g.lineWidth=1;g.strokeStyle=col('--c3');g.fillStyle=col('--c3');g.font='bold 12px system-ui';
+D.ax.forEach((k,q)=>{const x=X(xs[k]),y=Y(Phi[n][k]/sc);g.setLineDash([4,4]);g.lineWidth=1;g.beginPath();g.moveTo(x,Y(-ym));g.lineTo(x,Y(ym));g.stroke();g.setLineDash([]);g.lineWidth=2.5;g.beginPath();g.arc(x,y,8,0,7);g.stroke();g.textAlign=q===2?'right':'center';g.fillText('A'+(q+1),q===2?x-5:x,Y(ym)+15)});
+g.setLineDash([])})}
+}
+const RULES={L:[1000,'L','mm'],a:[100,'a','mm'],h:[10,'h','mm'],E:[1e4,'E','GPa'],rho:[3e4,'ρ','kg/m³'],z:[20,'ζ','%']};
+function validate(){let msg='';for(const k in RULES){const [hi,n,u]=RULES[k],el=$(k),v=el.value===''?NaN:+el.value,ok=v>0&&v<=hi;el.style.borderColor=ok?'':'var(--c2)';if(!ok&&!msg)msg=`${n} debe ser mayor que 0 y no superior a ${hi} ${u}. Se mantienen los últimos resultados válidos.`}$('err').textContent=msg;return !msg}
+function update(){
+if(!validate())return;
+calc();const {wn,wa,m,rho,A,L}=D;
+const nm=3;
+$('hg').textContent=D.N;
+$('tb').innerHTML=[...Array(nm)].map((_,k)=>{const ft=wa[k]/2/Math.PI,fn=wn[k]/2/Math.PI;return `<tr><td>${k+1}</td><td>${ft.toFixed(2)}</td><td>${fn.toFixed(2)}</td><td>${((fn/ft-1)*100).toFixed(1)} %</td></tr>`}).join('');
+draw()}
+document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',update));
+addEventListener('resize',draw);update();
+</script>
+<script>
+/* RESPUESTA:INICIO (script del apartado de respuesta; borrar junto con la sección HTML marcada RESPUESTA) */
+(function(){
+const $=id=>document.getElementById(id),MC=['--c1','--c2','--c4'];
+let R,s=0,playing=true,last=0,first=true;
+const qd=(r,s)=>{const o=R.q[r];if(R.har){const th=2*Math.PI*s;return o.re*Math.cos(th)-o.im*Math.sin(th)}const t=R.T*s;return o.g/o.wd*Math.exp(-o.sg*t)*Math.sin(o.wd*t)};
+const qa=(r,s)=>{const o=R.q[r];if(R.har)return -R.Om*R.Om*qd(r,s);const t=R.T*s,w=o.wd,e=Math.exp(-o.sg*t);return o.g/w*e*((o.sg*o.sg-w*w)*Math.sin(w*t)-2*o.sg*w*Math.cos(w*t))};
+function setup(){
+const N=D.N,har=$('rt').value==='h',z=D.z,f1=D.wn[0]/2/Math.PI,sl=$('rO'),fm=Math.ceil(D.wa[2]/2/Math.PI*1.3/10)*10;
+sl.max=fm;if(first){sl.value=f1.toFixed(1);first=false}if(+sl.value>fm)sl.value=fm;
+$('rOv').textContent=(+sl.value).toFixed(1)+' Hz';$('rh').style.display=har?'':'none';
+const j=D.ax[+$('rj').value],Om=2*Math.PI*sl.value;
+const q=D.wn.map((w,r)=>{const g=D.Phi[r][j];if(har){const re=w*w-Om*Om,im=2*z*w*Om,d=re*re+im*im;return{re:g*re/d,im:-g*im/d}}return{g,wd:w*Math.sqrt(1-z*z),sg:z*w}});
+R={har,Om,T:8/f1,q,j};
+let ym=1e-30;
+for(let i=0;i<=240;i++){const c=i/240;for(let k=0;k<N;k++){let t=0;for(let r=0;r<N;r++){const v=D.Phi[r][k]*qd(r,c);t+=v;if(r<3)ym=Math.max(ym,Math.abs(v))}ym=Math.max(ym,Math.abs(t))}}
+R.ym=ym;
+const n=1200,span=har?3:1,x=[],y=[[],[],[]];let am=1e-30;
+for(let i=0;i<=n;i++){const c=span*i/n;x.push(har?c:R.T*c*1000);D.ax.forEach((k,a)=>{let t=0;for(let r=0;r<N;r++)t+=D.Phi[r][k]*qa(r,c);y[a].push(t);am=Math.max(am,Math.abs(t))})}
+R.ax=x;R.ay=y.map(a=>a.map(v=>v/am));
+frame()}
+function frame(){
+if(!R)return;
+const N=D.N,L=D.L,xs=[0].concat(D.xs),har=R.har,ym=R.ym;
+const U=[0,1,2].map(r=>D.xs.map((_,k)=>D.Phi[r][k]*qd(r,s)/ym));
+const Tt=D.xs.map((_,k)=>{let t=0;for(let r=0;r<N;r++)t+=D.Phi[r][k]*qd(r,s);return t/ym});
+$('rsv').textContent=har?Math.round(360*s)+'°':(R.T*s*1000).toFixed(1)+' ms';
+const line=(g,X,Y,u)=>{g.beginPath();g.moveTo(X(0),Y(0));xs.slice(1).forEach((x,k)=>g.lineTo(X(x),Y(u[k])));g.stroke()};
+plot($('rc1'),[],[0,L],[-1.3,1.3],'x (m)','Desplazamiento normalizado',(g,X,Y,col)=>{
+g.lineJoin='round';g.setLineDash([5,3]);g.lineWidth=1.5;U.forEach((u,r)=>{g.strokeStyle=col(MC[r]);line(g,X,Y,u)});
+g.setLineDash([]);g.lineWidth=3;g.strokeStyle=col('--tx');line(g,X,Y,Tt);
+g.fillStyle=col('--tx');xs.forEach((x,k)=>{g.beginPath();g.arc(X(x),Y(k?Tt[k-1]:0),3,0,7);g.fill()});
+g.strokeStyle=col('--c3');g.fillStyle=col('--c3');g.lineWidth=2.5;g.font='bold 12px system-ui';g.textAlign='center';
+D.ax.forEach((k,a)=>{const x=X(D.xs[k]),y=Y(Tt[k]);g.beginPath();g.arc(x,y,8,0,7);g.stroke();g.fillText('A'+(a+1),Math.min(x,X(L)-8),y+22)});
+const xe=X(D.xs[R.j]);g.fillStyle=col('--c2');g.beginPath();g.moveTo(xe-7,Y(1.3)+3);g.lineTo(xe+7,Y(1.3)+3);g.lineTo(xe,Y(1.3)+17);g.fill();g.fillText(har?'F':'I',Math.min(xe,X(L)-8),Y(1.3)+32)});
+const xc=har?s:R.T*s*1000,xm=R.ax[R.ax.length-1];
+plot($('rc2'),[0,1,2].map(a=>({x:R.ax,y:R.ay[a],c:MC[a]})),[0,xm],[-1.1,1.1],har?'Tiempo (periodos de excitación)':'Tiempo (ms)','Aceleración normalizada',(g,X,Y,col)=>{g.strokeStyle=col('--mut');g.lineWidth=1.5;g.setLineDash([4,4]);g.beginPath();g.moveTo(X(xc),Y(-1.1));g.lineTo(X(xc),Y(1.1));g.stroke();g.setLineDash([])})}
+function tick(ts){if(playing&&R){s=(s+Math.min(ts-last,100)/1000/(R.har?2.5:10))%1;$('rs').value=s;frame()}last=ts;requestAnimationFrame(tick)}
+$('rp').onclick=()=>{playing=!playing;$('rp').textContent=playing?'⏸ Pausa':'▶ Reproducir'};
+$('rs').addEventListener('input',e=>{s=+e.target.value;playing=false;$('rp').textContent='▶ Reproducir';frame()});
+document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',ev=>{if(ev.target.id!=='rs')setup()}));
+[0,1,2].forEach(r=>$('rf'+r).onclick=()=>{$('rO').value=(D.wn[r]/2/Math.PI).toFixed(1);setup()});
+addEventListener('resize',frame);
+setup();requestAnimationFrame(tick);
+})();
+/* RESPUESTA:FIN */
+</script></body></html>
